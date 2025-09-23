@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Export Banner PNGs</title>
+  <style>
+    :root{ --bg:#0b1020; --text:#e7eefc; --muted:#9fb4d6 }
+    body{margin:0;padding:20px;background:var(--bg);color:var(--text);font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto}
+    h1{margin:0 0 8px}
+    .row{display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:center;margin-bottom:18px}
+    canvas{width:100%;height:auto;border:1px solid rgba(255,255,255,.2);border-radius:10px;background:#111}
+    .tools{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+    .btn{appearance:none;border:0;border-radius:8px;padding:10px 12px;background:linear-gradient(135deg,#e11d48,#f97316);color:#fff;font-weight:700;cursor:pointer}
+    .ghost{background:transparent;color:var(--text);border:1px solid rgba(255,255,255,.25)}
+    input[type="color"]{width:44px;height:34px;border:0;background:transparent}
+    label{display:flex;align-items:center;gap:6px}
+  </style>
+</head>
+<body>
+  <h1>Export Banner PNGs (1600×600)</h1>
+  <p class="muted" style="color:var(--muted)">Renders the local SVG banners to PNGs you can save. Optional overlay adds a subtle creative glow/sparkle.</p>
+
+  <div class="tools">
+    <label><input type="checkbox" id="overlay" checked> Add creative overlay</label>
+    <label>Overlay A <input type="color" id="c1" value="#ff7a18"></label>
+    <label>Overlay B <input type="color" id="c2" value="#af002d"></label>
+    <button class="btn ghost" id="rerender">Re-render</button>
+  </div>
+
+  <div id="wrap"></div>
+
+  <script>
+  const SIZE = { w: 1600, h: 600 };
+  const slides = [
+    { name:'slide1', src:'../images/banners/slide1.svg', title:'Slide 1' },
+    { name:'slide2', src:'../images/banners/slide2.svg', title:'Slide 2' },
+    { name:'slide3', src:'../images/banners/slide3.svg', title:'Slide 3' },
+  ];
+
+  async function loadImage(url){
+    const img = new Image(); img.crossOrigin='anonymous';
+    img.src = url + (url.includes('?')?'&':'?') + 't=' + Date.now();
+    await img.decode().catch(()=>{});
+    return img;
+  }
+
+  function drawOverlay(ctx){
+    const use = document.getElementById('overlay').checked;
+    if (!use) return;
+    const c1 = document.getElementById('c1').value;
+    const c2 = document.getElementById('c2').value;
+    // Gradient wash
+    const g = ctx.createLinearGradient(0,0,SIZE.w,SIZE.h);
+    g.addColorStop(0, c1 + '20');
+    g.addColorStop(1, c2 + '20');
+    ctx.fillStyle = g; ctx.fillRect(0,0,SIZE.w,SIZE.h);
+    // Sparkles
+    ctx.globalAlpha = 0.6; ctx.fillStyle = '#fff';
+    for (let i=0;i<60;i++){
+      const x = Math.random()*SIZE.w; const y = Math.random()*SIZE.h*0.8;
+      const r = 0.8 + Math.random()*1.8; ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  async function render(){
+    const wrap = document.getElementById('wrap');
+    wrap.innerHTML = '';
+    for (const s of slides){
+      const row = document.createElement('div'); row.className='row';
+      const canvas = document.createElement('canvas'); canvas.width = SIZE.w; canvas.height = SIZE.h;
+      const tools = document.createElement('div'); tools.className='tools';
+      tools.innerHTML = `<strong>${s.title}</strong>
+        <button class="btn" data-name="${s.name}">Download ${s.name}.png</button>
+        <button class="btn ghost" data-replace="${s.name}">Replace home banner with PNG</button>`;
+      row.appendChild(canvas); row.appendChild(tools); wrap.appendChild(row);
+
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#0b1020'; ctx.fillRect(0,0,SIZE.w,SIZE.h);
+      try {
+        const img = await loadImage(s.src);
+        ctx.drawImage(img, 0, 0, SIZE.w, SIZE.h);
+      } catch(e) { console.error('Failed to load', s.src, e); }
+      drawOverlay(ctx);
+
+      tools.querySelector('[data-name]').addEventListener('click', ()=>{
+        const a = document.createElement('a');
+        a.download = s.name + '.png';
+        a.href = canvas.toDataURL('image/png');
+        a.click();
+      });
+      tools.querySelector('[data-replace]').addEventListener('click', ()=>{
+        // Trigger download with correct name; place into images/banners/ to override
+        const a = document.createElement('a');
+        a.download = s.name + '.png';
+        a.href = canvas.toDataURL('image/png');
+        a.click();
+        alert('Save the downloaded file to images/banners/' + s.name + '.png to override the home banner.');
+      });
+    }
+  }
+
+  document.getElementById('rerender').addEventListener('click', render);
+  render();
+  </script>
+</body>
+</html>
+

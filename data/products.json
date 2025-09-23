@@ -1,0 +1,74 @@
+[
+  {
+    "id": "CRK-101",
+    "name": "Neon Sparklers",
+    "category": "Sparklers",
+    "price": 99,
+    "discount_pct": 10,
+    "image": "https://via.placeholder.com/400x300?text=Neon+Sparklers",
+    "loudness": 2,
+    "duration_seconds": 45,
+    "colors": ["#ff9a9e", "#fad0c4"],
+    "sequence": [0.2, 0.3, 0.2, 0.3]
+  },
+  {
+    "id": "CRK-220",
+    "name": "Thunder Bomb",
+    "category": "Bombs",
+    "price": 149,
+    "discount_pct": 5,
+    "image": "https://via.placeholder.com/400x300?text=Thunder+Bomb",
+    "loudness": 9,
+    "duration_seconds": 3,
+    "colors": ["#ff512f", "#dd2476"],
+    "sequence": [1]
+  },
+  {
+    "id": "CRK-332",
+    "name": "Rainbow Flower Pots",
+    "category": "Flower Pots",
+    "price": 199,
+    "discount_pct": 15,
+    "image": "https://via.placeholder.com/400x300?text=Rainbow+Flower+Pots",
+    "loudness": 4,
+    "duration_seconds": 30,
+    "colors": ["#a18cd1", "#fbc2eb"],
+    "sequence": [0.4, 0.4, 0.2]
+  },
+  {
+    "id": "CRK-404",
+    "name": "Whistling Rockets",
+    "category": "Rockets",
+    "price": 249,
+    "discount_pct": 12,
+    "image": "https://via.placeholder.com/400x300?text=Whistling+Rockets",
+    "loudness": 7,
+    "duration_seconds": 8,
+    "colors": ["#00c6ff", "#0072ff"],
+    "sequence": [0.3, 0.3, 0.3]
+  },
+  {
+    "id": "CRK-550",
+    "name": "Chakkar Deluxe",
+    "category": "Chakkars",
+    "price": 129,
+    "discount_pct": 8,
+    "image": "https://via.placeholder.com/400x300?text=Chakkar+Deluxe",
+    "loudness": 3,
+    "duration_seconds": 25,
+    "colors": ["#f6d365", "#fda085"],
+    "sequence": [0.2, 0.2, 0.2, 0.2, 0.2]
+  },
+  {
+    "id": "CRK-777",
+    "name": "Sky Symphony Box",
+    "category": "Combo Box",
+    "price": 899,
+    "discount_pct": 20,
+    "image": "https://via.placeholder.com/400x300?text=Sky+Symphony+Box",
+    "loudness": 6,
+    "duration_seconds": 60,
+    "colors": ["#30cfd0", "#330867"],
+    "sequence": [0.1, 0.3, 0.1, 0.5, 0.1, 0.3, 0.2]
+  }
+]

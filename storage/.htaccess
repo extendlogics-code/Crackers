@@ -1,0 +1,8 @@
+# Protect storage from direct web access
+Require all denied
+
+# Allow access to invoices if explicitly needed by some servers
+<FilesMatch "^invoices/.*\.pdf$">
+  Require all denied
+</FilesMatch>
+   
