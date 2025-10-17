@@ -1,9 +1,11 @@
 <?php
 require_once __DIR__ . '/../lib/auth.php';
 require_once __DIR__ . '/../lib/db.php';
+require_once __DIR__ . '/../lib/routes.php';
 admin_require_login();
 
 $pdo = get_pdo();
+$routeExt = route_extension();
 
 // Pagination and date filters
 $limit = max(10, min(200, (int)($_GET['limit'] ?? 50)));
@@ -26,8 +28,9 @@ $totalOrders = (int)($stmtCnt->fetch()['c'] ?? 0);
 $totalPages = max(1, (int)ceil($totalOrders / $limit));
 
 // Fetch orders + customers
-$sql = "SELECT o.id, o.subtotal, o.shipping, o.total, o.status, o.created_at,
+$sql = "SELECT o.id, o.subtotal, o.total, o.status, o.created_at, o.transaction_id,
                c.name AS customer_name, c.email AS customer_email, c.phone AS customer_phone,
+               c.address_line1 AS customer_address_line1, c.address_line2 AS customer_address_line2,
                c.city AS customer_city, c.state AS customer_state, c.pincode AS customer_pincode
         FROM orders o
         JOIN customers c ON c.id = o.customer_id
@@ -51,6 +54,14 @@ if ($orderIds) {
     $itemsByOrder[$oid][] = $row;
   }
 }
+
+// Attach item lists for template rendering
+foreach ($orders as &$orderRef) {
+  $oid = (int)$orderRef['id'];
+  $itms = $itemsByOrder[$oid] ?? [];
+  $orderRef['items_list'] = $itms;
+}
+unset($orderRef);
 ?>
 <!doctype html>
 <html lang="en">
@@ -88,8 +99,8 @@ if ($orderIds) {
     <header>
       <strong>Orders Dashboard</strong>
       <div>
-        <a class="ghost btn" href="/inventory/dashboard.php">Inventory</a>
-        <a class="ghost btn" href="/inventory/login.php?logout=1">Logout</a>
+        <a class="ghost btn" href="/inventory/dashboard<?= $routeExt ?>">Inventory</a>
+        <a class="ghost btn" href="/inventory/login<?= $routeExt ?>?logout=1">Logout</a>
       </div>
     </header>
     <div class="wrap">
@@ -117,8 +128,8 @@ if ($orderIds) {
         <div>Role: <span class="badge"><?= htmlspecialchars(admin_current_role()) ?></span></div>
         <div>
           <?php if (admin_current_role()==='admin'): ?>
-            <a class="btn" href="/inventory/product.php">Create Product</a>
-            <a class="btn" href="/inventory/order_edit.php">Create Order</a>
+            <a class="btn" href="/inventory/product<?= $routeExt ?>">Create Product</a>
+            <a class="btn" href="/inventory/order_edit<?= $routeExt ?>">Create Order</a>
           <?php endif; ?>
         </div>
       </div>
@@ -130,6 +141,7 @@ if ($orderIds) {
             <th style="width:80px">Order #</th>
             <th>Customer</th>
             <th style="width:160px">Contact</th>
+            <th style="width:160px">Transaction ID</th>
             <th style="width:140px">Totals</th>
             <th style="width:160px">Placed</th>
             <th>Items</th>
@@ -137,21 +149,43 @@ if ($orderIds) {
           </tr>
         </thead>
         <tbody>
-          <?php foreach ($orders as $o): $oid=(int)$o['id']; $itms=$itemsByOrder[$oid] ?? []; ?>
+          <?php foreach ($orders as $o): $oid=(int)$o['id']; $itms=$o['items_list'] ?? []; ?>
           <tr>
             <td><span class="badge">#<?= $oid ?></span><div class="meta">Status: <?= htmlspecialchars($o['status']) ?></div></td>
             <td>
               <strong><?= htmlspecialchars($o['customer_name']) ?></strong>
-              <div class="meta"><?= htmlspecialchars(($o['customer_city'] ?: '') . ', ' . ($o['customer_state'] ?: '')) ?></div>
-              <div class="meta">PIN: <?= htmlspecialchars((string)($o['customer_pincode'] ?: '')) ?></div>
+               <?php if (!empty($o['customer_address_line1'])): ?>
+                <div class="meta"><?= htmlspecialchars($o['customer_address_line1']) ?></div>
+              <?php endif; ?>
+              <?php if (!empty($o['customer_address_line2'])): ?>
+                <div class="meta"><?= htmlspecialchars($o['customer_address_line2']) ?></div>
+              <?php endif; ?>
+              <?php
+                $cityState = trim(implode(', ', array_filter([
+                  $o['customer_city'] ?? '',
+                  $o['customer_state'] ?? ''
+                ])));
+              ?>
+              <?php if ($cityState !== ''): ?>
+                <div class="meta"><?= htmlspecialchars($cityState) ?></div>
+              <?php endif; ?>
+              <?php if (!empty($o['customer_pincode'])): ?>
+                <div class="meta">PIN: <?= htmlspecialchars((string)$o['customer_pincode']) ?></div>
+              <?php endif; ?>
             </td>
             <td>
               <div><?= htmlspecialchars((string)$o['customer_phone']) ?></div>
               <div class="meta"><?= htmlspecialchars((string)$o['customer_email']) ?></div>
             </td>
             <td>
+              <?php if (!empty($o['transaction_id'])): ?>
+                <div><?= htmlspecialchars((string)$o['transaction_id']) ?></div>
+              <?php else: ?>
+                <span class="meta">-</span>
+              <?php endif; ?>
+            </td>
+            <td>
               <div>Sub: ₹<?= number_format((float)$o['subtotal'],2) ?></div>
-              <div>Ship: ₹<?= number_format((float)$o['shipping'],2) ?></div>
               <div><strong>Total: ₹<?= number_format((float)$o['total'],2) ?></strong></div>
             </td>
             <td><?= htmlspecialchars($o['created_at']) ?></td>
@@ -180,9 +214,13 @@ if ($orderIds) {
               <?php endif; ?>
             </td>
             <td>
-              <a class="ghost btn" href="/inventory/order_edit.php?id=<?= $oid ?>">Edit</a>
+              <a class="ghost btn" href="/inventory/order_edit<?= $routeExt ?>?id=<?= $oid ?>">Edit</a>
+              <form method="post" action="/api/order_pdf<?= $routeExt ?>" target="_blank" style="display:inline">
+                <input type="hidden" name="order_id" value="<?= $oid ?>">
+                <button class="ghost btn" type="submit">Download</button>
+              </form>
               <?php if (admin_current_role()==='admin'): ?>
-              <form method="post" action="/inventory/order_delete.php" style="display:inline" onsubmit="return confirm('Delete order #<?= $oid ?>? This will remove its items too.');">
+              <form method="post" action="/inventory/order_delete<?= $routeExt ?>" style="display:inline" onsubmit="return confirm('Delete order #<?= $oid ?>? This will remove its items too.');">
                 <input type="hidden" name="id" value="<?= $oid ?>">
                 <input type="hidden" name="csrf" value="<?= htmlspecialchars(admin_csrf_token()) ?>">
                 <button class="ghost btn" type="submit">Delete</button>

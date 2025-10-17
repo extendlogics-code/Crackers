@@ -40,10 +40,6 @@ function build_order_pdf(array $order): string {
     // Page size
     $W = 595; $H = 842; // A4 portrait points
 
-    // Resources / XObjects (we’ll push later)
-    $xobjects = [];
-    $imageObjNum = null;
-
     // Try to load QR JPEG (path override allowed via $order['qr_path'])
     $qrPath = $order['qr_path'] ?? __DIR__ . '/../images/payments/upi_qr.jpg';
     if (!is_file($qrPath)) {
@@ -61,23 +57,28 @@ function build_order_pdf(array $order): string {
             $qrBytes = null;
         }
     }
+    // Keep QR panel enabled if image is valid
 
     // Helpers for drawing
-    $ops = '';
-    $text = '';
     $M = 28; // margin
-    $left = $M + 8;
-
-    $addAt = function($x,$ytop,$txt,$size=10) use (&$text){
-        $safe = pdf_escape($txt);
-        $text .= sprintf("BT /F1 %d Tf %.2f %.2f Td (%s) Tj ET\n", $size, $x, $ytop, $safe);
-    };
-    $drawRect = function($x,$yTop,$w,$h) use (&$ops){
+    $drawRect = static function (&$ops, $x, $yTop, $w, $h){
         $yy = $yTop - $h; // bottom-left
         $ops .= sprintf("%.2f %.2f %.2f %.2f re S\n", $x, $yy, $w, $h);
     };
-    $drawLine = function($x1,$y1,$x2,$y2) use (&$ops){
+    $drawLine = static function (&$ops, $x1, $y1, $x2, $y2){
         $ops .= sprintf("%.2f %.2f m %.2f %.2f l S\n", $x1, $y1, $x2, $y2);
+    };
+    $addText = static function (&$text, $x, $ytop, $txt, $size=10){
+        $safe = pdf_escape($txt);
+        $text .= sprintf("BT /F1 %d Tf %.2f %.2f Td (%s) Tj ET\n", $size, $x, $ytop, $safe);
+    };
+    $trimmedName = static function($s){
+        $max = 44; $ellipsis = '…';
+        if (function_exists('mb_strimwidth')) {
+            return mb_strimwidth($s, 0, $max, $ellipsis, 'UTF-8');
+        }
+        $s = (string)$s;
+        return (strlen($s) > $max) ? substr($s, 0, max(0,$max-1)) . $ellipsis : $s;
     };
 
     // Pull data
@@ -106,144 +107,207 @@ function build_order_pdf(array $order): string {
 
     $items = $order['items'] ?? [];
     $subtotal = (float)($order['subtotal'] ?? 0);
-    $shipping = (float)($order['shipping'] ?? 0);
     $discount = (float)($order['discount'] ?? 0);
     $discount_pct = isset($order['discount_pct']) ? (float)$order['discount_pct'] : null;
-    $disc_amount = $discount_pct !== null ? round($subtotal * $discount_pct/100, 2) : $discount;
-    $sgst = (float)($order['sgst'] ?? 0);
-    $cgst = (float)($order['cgst'] ?? 0);
-    $netAmount = (float)($order['total'] ?? max(0, $subtotal - $disc_amount + $shipping + $sgst + $cgst));
+    $total = (float)($order['total'] ?? $subtotal);
+    // NET AMOUNT mirrors stored total (shipping removed)
+    $netAmount = (float)$total;
 
-    // Title
+    // Reusable layout metrics
     $titleH = 26; $innerW = $W - 2*$M; $x0 = $M; $yTop = $H - $M;
-    $drawRect($x0, $yTop, $innerW, $titleH);
-    $addAt($x0 + $innerW/2 - 50, $yTop - 18, 'Tax Estimation', 14);
-    $addAt($x0 + $innerW - 60, $yTop - 12, '[Original]', 8);
-
-    // Party boxes
-    $boxH = 110; $halfW = $innerW/2; $yTop2 = $yTop - $titleH;
-    $drawRect($x0, $yTop2, $halfW, $boxH); // Billed By
-    $drawRect($x0 + $halfW, $yTop2, $halfW, $boxH); // Estimation Details
-    $drawRect($x0, $yTop2 - $boxH, $halfW, $boxH); // Ship To
-    $drawRect($x0 + $halfW, $yTop2 - $boxH, $halfW, $boxH); // blank
-
-    // Fill left upper: Billed By
-    $addAt($x0 + 6, $yTop2 - 16, 'Billed By : ' . $vName, 10);
-    if ($vAddr !== '') $addAt($x0 + 6, $yTop2 - 30, $vAddr, 9);
-    if ($vGst !== '') $addAt($x0 + 6, $yTop2 - 44, 'GST : ' . $vGst, 9);
-    if ($vPhone !== '') $addAt($x0 + 6, $yTop2 - 58, 'Ph : ' . $vPhone, 9);
-
-    // Fill right upper: Estimation meta
-    $addAt($x0 + $halfW + 6, $yTop2 - 16, 'Estimation No: ' . $estNo, 10);
-    $addAt($x0 + $halfW + 6, $yTop2 - 30, 'Date: ' . date('Y-m-d'), 10);
-    if ($stateSupply !== '') $addAt($x0 + $halfW + 6, $yTop2 - 44, 'State Of Supply: ' . $stateSupply, 9);
-    if ($eway !== '') $addAt($x0 + $halfW + 6, $yTop2 - 58, 'E-way Bill No: ' . $eway, 9);
-    if ($vehicle !== '') $addAt($x0 + $halfW + 6, $yTop2 - 72, 'Vehicle No: ' . $vehicle, 9);
-
-    // Ship To (left lower)
-    $addAt($x0 + 6, $yTop2 - $boxH - 16, 'Ship To : ' . $cName, 10);
-    $shipAddr = trim(implode(', ', array_filter([$cAddr1, $cAddr2, $cCity, $cState, $cPin])));
-    if ($shipAddr !== '') $addAt($x0 + 6, $yTop2 - $boxH - 30, 'Address : ' . $shipAddr, 9);
-    if ($cPhone !== '') $addAt($x0 + 6, $yTop2 - $boxH - 44, 'Ph : ' . $cPhone, 9);
-
-    // Items table
-    $tableTop = $yTop2 - 2*$boxH - 6; // gap
+    $boxH = 110; $halfW = $innerW/2;
+    $tableHeaderGap = 6;
+    $rowH = 18;
     $colX = [
         $x0,                      // left border
         $x0 + 36,                 // S No
-        $x0 + 36 + 300,           // Particular
-        $x0 + 36 + 300 + 60,      // Qty
-        $x0 + 36 + 300 + 60 + 60, // Unit
-        $x0 + 36 + 300 + 60 + 60 + 70, // Price
+        $x0 + 36 + 200,           // Particular
+        $x0 + 36 + 200 + 60,      // Qty
+        $x0 + 36 + 200 + 60 + 60, // Price
         $x0 + $innerW             // Amount/right
     ];
-    $rowH = 18;
-    // Header row
-    $drawRect($x0, $tableTop, $innerW, $rowH);
-    $addAt($colX[0] + 6, $tableTop - 12, 'S No', 9);
-    $addAt($colX[1] + 6, $tableTop - 12, 'Particular', 9);
-    $addAt($colX[2] + 6, $tableTop - 12, 'Qty', 9);
-    $addAt($colX[3] + 6, $tableTop - 12, 'Unit', 9);
-    $addAt($colX[4] + 6, $tableTop - 12, 'Price', 9);
-    $addAt($colX[5] + 6, $tableTop - 12, 'Amount', 9);
-    for ($i=1;$i<count($colX)-1;$i++) { $drawLine($colX[$i], $tableTop - $rowH, $colX[$i], $tableTop); }
 
-    // Item rows
-    $yCursor = $tableTop - $rowH; $sno = (int)($order['sno_start'] ?? 1); $maxRows = 18;
-    foreach ($items as $it) {
-        if ($maxRows-- <= 0) break;
-        $qty = (int)($it['qty'] ?? 0);
-        $unit = $it['unit'] ?? 'Box';
-        $name = (string)($it['name'] ?? ($it['id'] ?? 'Item'));
-        $price = (float)($it['price'] ?? ($it['unit_price'] ?? 0));
-        $amount = $price * $qty;
-        // Row box
-        $drawRect($x0, $yCursor, $innerW, $rowH);
-        for ($i=1;$i<count($colX)-1;$i++) { $drawLine($colX[$i], $yCursor - $rowH, $colX[$i], $yCursor); }
-        // Text
-        $addAt($colX[0] + 6, $yCursor - 12, (string)$sno, 9);
-        $addAt($colX[1] + 6, $yCursor - 12, strtoupper(mb_strimwidth($name,0,44,'…','UTF-8')), 9);
-        $addAt($colX[2] + 6, $yCursor - 12, (string)$qty, 9);
-        $addAt($colX[3] + 6, $yCursor - 12, $unit, 9);
-        $addAt($colX[4] + 6, $yCursor - 12, number_format($price,2), 9);
-        $addAt($colX[5] + 6, $yCursor - 12, number_format($amount,2), 9);
-        $yCursor -= $rowH; $sno++;
+    $itemsPerPage = 18;
+    $chunks = array_chunk($items, $itemsPerPage);
+    if (empty($chunks)) {
+        $chunks = [[]];
+    }
+    $totalItemCount = count($items);
+    $totalPages = count($chunks);
+    $pageNo = 0;
+    $serial = (int)($order['sno_start'] ?? 1);
+    $pages = [];
+
+    $renderPage = function(array $pageItems, bool $isLast, int $currentSerial, int $pageIndex) use (
+        $W,$H,$M,$titleH,$innerW,$x0,$yTop,$boxH,$halfW,$tableHeaderGap,$rowH,$colX,
+        $drawRect,$drawLine,$addText,$trimmedName,
+        $vName,$vAddr,$vGst,$vPhone,
+        $cName,$cAddr1,$cAddr2,$cCity,$cState,$cPin,$cPhone,
+        $estNo,$stateSupply,$eway,$vehicle,
+        $subtotal,$netAmount,$order,$totalItemCount,$totalPages,$vendor
+    ){
+        $ops = ''; $text = '';
+
+        // Title
+        $drawRect($ops, $x0, $yTop, $innerW, $titleH);
+        $addText($text, $x0 + $innerW/2 - 50, $yTop - 18, 'Invoice Order', 14);
+        $addText($text, $x0 + $innerW - 60, $yTop - 12, '[Original]', 8);
+
+        // Party boxes
+        $yTop2 = $yTop - $titleH;
+        $drawRect($ops, $x0, $yTop2, $halfW, $boxH); // Billed By
+        $drawRect($ops, $x0 + $halfW, $yTop2, $halfW, $boxH); // Estimation Details
+        $drawRect($ops, $x0, $yTop2 - $boxH, $halfW, $boxH); // Ship To
+        $drawRect($ops, $x0 + $halfW, $yTop2 - $boxH, $halfW, $boxH); // blank
+
+        // Fill left upper: Billed By
+        $addText($text, $x0 + 6, $yTop2 - 16, 'Billed By : ' . $vName, 10);
+        if ($vAddr !== '') $addText($text, $x0 + 6, $yTop2 - 30, $vAddr, 9);
+        if ($vGst !== '') $addText($text, $x0 + 6, $yTop2 - 44, 'GST : ' . $vGst, 9);
+        if ($vPhone !== '') $addText($text, $x0 + 6, $yTop2 - 58, 'Ph : ' . $vPhone, 9);
+
+        // Fill right upper: Estimation meta
+        $addText($text, $x0 + $halfW + 6, $yTop2 - 16, 'Estimation No: ' . $estNo, 10);
+        $addText($text, $x0 + $halfW + 6, $yTop2 - 30, 'Date: ' . date('Y-m-d'), 10);
+        if ($stateSupply !== '') $addText($text, $x0 + $halfW + 6, $yTop2 - 44, 'State Of Supply: ' . $stateSupply, 9);
+        if ($eway !== '') $addText($text, $x0 + $halfW + 6, $yTop2 - 58, 'E-way Bill No: ' . $eway, 9);
+        if ($vehicle !== '') $addText($text, $x0 + $halfW + 6, $yTop2 - 72, 'Vehicle No: ' . $vehicle, 9);
+
+        // Ship To (left lower)
+        $addText($text, $x0 + 6, $yTop2 - $boxH - 16, 'Ship To : ' . $cName, 10);
+        $cityStateParts = array_filter([$cCity, $cState]);
+        $yAddr = $yTop2 - $boxH - 30;
+        if ($cAddr1 !== '') {
+            $addText($text, $x0 + 6, $yAddr, 'Address Line 1 : ' . $cAddr1, 9);
+            $yAddr -= 12;
+        }
+        if ($cAddr2 !== '') {
+            $addText($text, $x0 + 6, $yAddr, 'Address Line 2 : ' . $cAddr2, 9);
+            $yAddr -= 12;
+        }
+        if ($cityStateParts) {
+            $line = implode(', ', $cityStateParts);
+            if ($cPin !== '') { $line .= ' - ' . $cPin; }
+            $addText($text, $x0 + 6, $yAddr, 'City / State : ' . $line, 9);
+            $yAddr -= 12;
+        } elseif ($cPin !== '') {
+            $addText($text, $x0 + 6, $yAddr, 'PIN : ' . $cPin, 9);
+            $yAddr -= 12;
+        }
+        if ($cPhone !== '') {
+            $addText($text, $x0 + 6, $yAddr, 'Ph : ' . $cPhone, 9);
+            $yAddr -= 12;
+        }
+
+        // Items table header
+        $tableTop = $yTop2 - 2*$boxH - $tableHeaderGap;
+        $drawRect($ops, $x0, $tableTop, $innerW, $rowH);
+        $addText($text, $colX[0] + 6, $tableTop - 12, 'S No', 9);
+        $addText($text, $colX[1] + 6, $tableTop - 12, 'Particular', 9);
+        $addText($text, $colX[2] + 6, $tableTop - 12, 'Qty', 9);
+        $addText($text, $colX[3] + 6, $tableTop - 12, 'Price', 9);
+        $addText($text, $colX[4] + 6, $tableTop - 12, 'Amount', 9);
+        for ($i=1;$i<count($colX)-1;$i++) { $drawLine($ops, $colX[$i], $tableTop - $rowH, $colX[$i], $tableTop); }
+
+        // Item rows
+        $yCursor = $tableTop - $rowH;
+        foreach ($pageItems as $it) {
+            $qty = (int)($it['qty'] ?? 0);
+            $name = (string)($it['name'] ?? ($it['id'] ?? 'Item'));
+            $price = (float)($it['price'] ?? ($it['unit_price'] ?? 0));
+            $amount = $price * $qty;
+
+            $drawRect($ops, $x0, $yCursor, $innerW, $rowH);
+            for ($i=1;$i<count($colX)-1;$i++) { $drawLine($ops, $colX[$i], $yCursor - $rowH, $colX[$i], $yCursor); }
+
+            $addText($text, $colX[0] + 6, $yCursor - 12, (string)$currentSerial, 9);
+            $addText($text, $colX[1] + 6, $yCursor - 12, strtoupper($trimmedName($name)), 9);
+            $addText($text, $colX[2] + 6, $yCursor - 12, (string)$qty, 9);
+            $addText($text, $colX[3] + 6, $yCursor - 12, number_format($price,2), 9);
+            $addText($text, $colX[4] + 6, $yCursor - 12, number_format($amount,2), 9);
+
+            $yCursor -= $rowH;
+            $currentSerial++;
+        }
+
+        // Sub total only on last page when more than one item overall
+        if ($isLast && $totalItemCount > 1) {
+            $drawRect($ops, $x0, $yCursor, $innerW, $rowH);
+            for ($i=1;$i<count($colX)-1;$i++) { $drawLine($ops, $colX[$i], $yCursor - $rowH, $colX[$i], $yCursor); }
+            $addText($text, $colX[1] + 6, $yCursor - 12, 'SUB TOTAL', 9);
+            $addText($text, $colX[4] + 6, $yCursor - 12, number_format($subtotal,2), 9);
+            $yCursor -= $rowH;
+        }
+
+        if ($isLast) {
+            // Totals section with QR panel (like invoice_preview)
+            $sectionTop = max($M + 220, $yCursor - 24);
+
+            // RIGHT: totals box
+            $rows = [];
+            $rows[] = ['Sub Total', $subtotal];
+            $rows[] = ['NET AMOUNT :', $netAmount];
+            $sumRowH = 20; $sumW = 320; $sumX = $x0 + $innerW - $sumW - 12;
+            $sumTop = $sectionTop; $sumH = $sumRowH * count($rows);
+            $drawRect($ops, $sumX, $sumTop, $sumW, $sumH);
+            $ry = $sumTop;
+            for ($i=1;$i<count($rows);$i++){
+                $ry -= $sumRowH;
+                $drawLine($ops, $sumX, $ry, $sumX+$sumW, $ry);
+            }
+            $valX = $sumX + $sumW - 120; // align amounts
+            $ty = $sumTop;
+            foreach ($rows as $i=>$r){
+                $ty -= ($sumRowH - 8);
+                $size = ($i === count($rows)-1) ? 10 : 9;
+                $addText($text, $sumX + 8, $ty, $r[0], $size);
+                $addText($text, $valX, $ty, number_format((float)$r[1],2), $size);
+                $ty -= 8;
+            }
+
+            $sectionH = $sumH;
+            $wordsTop = $sectionTop - $sectionH - 12;
+            $words = amount_in_words_indian($netAmount);
+            $drawRect($ops, $x0, $wordsTop, $innerW, 20);
+            $addText($text, $x0 + 6, $wordsTop - 14, 'Amount in words : ' . $words, 9);
+
+            $netStripTop = $wordsTop - 20;
+            $drawRect($ops, $x0, $netStripTop, $innerW, 20);
+            $addText($text, $x0 + $innerW - 160, $netStripTop - 14, 'NET AMOUNT : ' . number_format($netAmount,2), 10);
+
+            // Footer sign line
+            $addText($text, $x0 + 6, $M + 26, 'Customer Sign', 9);
+            $addText($text, $x0 + $innerW - 120, $M + 26, 'For ' . ($vendor['name'] ?? 'PSK CRACKERS'), 9);
+            if (!empty($order['notes'])) {
+                $addText($text, $x0 + 6, $M + 12, (string)$order['notes'], 8);
+            } else {
+                $addText($text, $x0 + 6, $M + 12, 'We Declare that this Estimation shows the actual price of the goods described and that all particulars are true and correct', 8);
+            }
+        } else {
+            // Continuation notice on intermediate pages
+            $addText($text, $x0 + $innerW - 160, $M + 20, 'Continued on next page.', 9);
+        }
+
+        // Page footer with page number
+        $addText($text, $x0 + $innerW - 80, $M + 4, 'Page ' . ($pageIndex + 1) . '/' . $totalPages, 8);
+
+        return ['ops' => $ops, 'text' => $text];
+    };
+
+    foreach ($chunks as $idx => $chunk) {
+        $isLast = ($idx === $totalPages - 1);
+        $pages[] = $renderPage($chunk, $isLast, $serial, $idx);
+        $serial += count($chunk);
+        if (!$isLast && empty($chunk)) {
+            // avoid infinite loop with empty chunk (should not happen, but guard)
+            $serial++;
+        }
     }
 
-    // Bottom area: LEFT = QR panel, RIGHT = totals
-    $bottomBoxH = 120; // a bit taller for QR + text
-    $bottomTop = $M + 110; // panel top (PDF coords, down from bottom)
-    // Draw left panel border (visual)
-    $drawRect($x0, $bottomTop, $innerW/2, $bottomBoxH);
-    // Place QR (if available) at ~220x220pt inside left panel
-    $qrTargetSize = 120; // points
-    $qrX = $x0 + 12;
-    $qrY = $bottomTop - 16 - $qrTargetSize; // yTop - h
-
-    if ($qrBytes) {
-        // We will register an XObject name /Im1 (object num assigned later)
-        // Content stream: q  sX 0 0 sY  x y cm  /Im1 Do  Q
-        $ops .= sprintf("q %.2f 0 0 %.2f %.2f %.2f cm /Im1 Do Q\n",
-                        $qrTargetSize, $qrTargetSize, $qrX, $qrY);
-        // Caption: "Scan & Pay" and UPI ID under image
-        $addAt($qrX, $qrY - 12, 'Scan & Pay', 10);
-        $addAt($qrX, $qrY - 26, 'UPI ID: pskcrackers@axl', 9);
-        // Remember to emit XObject later
-        $xobjects['/Im1'] = ['bytes'=>$qrBytes, 'w'=>$qrW?:400, 'h'=>$qrH?:400];
-    } else {
-        // Fallback: draw placeholder and label
-        $drawRect($qrX, $qrY + $qrTargetSize, $qrTargetSize, $qrTargetSize);
-        $addAt($qrX + 6, $qrY + $qrTargetSize - 16, 'QR not available', 9);
-        $addAt($qrX, $qrY - 12, 'UPI ID: pskcrackers@axl', 9);
+    // If last chunk was empty ensure we still produced at least one page
+    if (empty($pages)) {
+        $pages[] = $renderPage([], true, $serial, 0);
     }
-
-    // Totals right box
-    $drawRect($x0 + $innerW/2, $bottomTop, $innerW/2, $bottomBoxH);
-    $lineY = $bottomTop + $bottomBoxH - 16;
-    $addAt($x0 + $innerW/2 + 6, $lineY, 'Sub Total : ' . number_format($subtotal,2), 10);
-    $lineY -= 14;
-    if ($shipping > 0) { $addAt($x0 + $innerW/2 + 6, $lineY, 'Shipping : ' . number_format($shipping,2), 10); $lineY -= 14; }
-    if ($disc_amount > 0) {
-        $label = 'Discount' . ($discount_pct !== null ? (' ' . (int)$discount_pct . ' %') : '');
-        $addAt($x0 + $innerW/2 + 6, $lineY, $label . ' : ' . number_format($disc_amount,2), 10); $lineY -= 14;
-    }
-    if ($sgst > 0) { $addAt($x0 + $innerW/2 + 6, $lineY, 'SGST : ' . number_format($sgst,2), 10); $lineY -= 14; }
-    if ($cgst > 0) { $addAt($x0 + $innerW/2 + 6, $lineY, 'CGST : ' . number_format($cgst,2), 10); $lineY -= 14; }
-    $addAt($x0 + $innerW/2 + 6, $lineY, 'NET AMOUNT : ' . number_format($netAmount,2), 11);
-
-    // Amount in words strip
-    $words = amount_in_words_indian($netAmount);
-    $drawRect($x0, $M + 72, $innerW, 20);
-    $addAt($x0 + 6, $M + 72 + 6, 'Amount in words : ' . $words, 9);
-    // Bottom net strip
-    $drawRect($x0, $M + 52, $innerW, 20);
-    $addAt($x0 + $innerW - 160, $M + 52 + 6, 'NET AMOUNT : ' . number_format($netAmount,2), 10);
-
-    // Footer sign line
-    $addAt($x0 + 6, $M + 26, 'Customer Sign', 9);
-    $addAt($x0 + $innerW - 120, $M + 26, 'For ' . ($vendor['name'] ?? 'PSK CRACKERS'), 9);
-    if (!empty($order['notes'])) $addAt($x0 + 6, $M + 12, (string)$order['notes'], 8);
-    else $addAt($x0 + 6, $M + 12, 'We Declare that this Estimation shows the actual price of the goods described and that all particulars are true and correct', 8);
 
     // ------------ Build PDF objects ------------
     $xref = [0];
@@ -253,42 +317,61 @@ function build_order_pdf(array $order): string {
         $out .= $objNum . " 0 obj\n" . $data . "\nendobj\n";
     };
 
+    $nextObj = 1;
+    $fontObjNum = $nextObj++;
+    $imageObjNum = null;
+    if ($qrBytes) {
+        $imageObjNum = $nextObj++;
+    }
+    $contentObjNums = [];
+    foreach ($pages as $_) {
+        $contentObjNums[] = $nextObj++;
+    }
+    $pageObjNums = [];
+    foreach ($pages as $_) {
+        $pageObjNums[] = $nextObj++;
+    }
+    $pagesRootObjNum = $nextObj++;
+    $catalogObjNum = $nextObj++;
+
     // Font
-    $emit(1, "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>");
+    $emit($fontObjNum, "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>");
 
     // Image XObject (if available)
-    if ($qrBytes) {
-        $imageObjNum = 6; // reserve a number for the image
-        // JPEG as DCTDecode, assume RGB, 8bpc
-        $imgDict = sprintf(
-            "<< /Type /XObject /Subtype /Image /Width %d /Height %d /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length %d >>",
-            $xobjects['/Im1']['w'], $xobjects['/Im1']['h'], strlen($qrBytes)
-        );
-        $emit($imageObjNum, $imgDict . "\nstream\n" . $qrBytes . "\nendstream");
+    if ($imageObjNum !== null) {
+        $emit($imageObjNum, sprintf(
+            "<< /Type /XObject /Subtype /Image /Width %d /Height %d /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length %d >>\nstream\n%s\nendstream",
+            max(1,$qrW), max(1,$qrH), strlen($qrBytes), $qrBytes
+        ));
     }
 
-    // Content stream (ops + text)
-    $content = "0 0 0 RG 0 0 0 rg 0.8 w\n" . $ops . $text;
-    $emit(2, "<< /Length " . strlen($content) . " >>\nstream\n" . $content . "endstream");
+    // Content streams
+    foreach ($pages as $i => $pageData) {
+        $content = "0 0 0 RG 0 0 0 rg 0.8 w\n" . $pageData['ops'] . $pageData['text'];
+        $emit($contentObjNums[$i], "<< /Length " . strlen($content) . " >>\nstream\n" . $content . "endstream");
+    }
 
-    // Page dict (include XObject if image)
-    if ($qrBytes) {
-        $emit(3, "<< /Type /Page /Parent 4 0 R /MediaBox [0 0 $W $H] /Contents 2 0 R " .
-                 "/Resources << /Font << /F1 1 0 R >> /XObject << /Im1 $imageObjNum 0 R >> >> >>");
-    } else {
-        $emit(3, "<< /Type /Page /Parent 4 0 R /MediaBox [0 0 $W $H] /Contents 2 0 R " .
-                 "/Resources << /Font << /F1 1 0 R >> >> >>");
+    // Page dictionaries
+    $kids = [];
+    foreach ($pages as $i => $pageData) {
+        $resources = "<< /Font << /F1 $fontObjNum 0 R >>";
+        if ($imageObjNum !== null) {
+            $resources .= " /XObject << /Im1 $imageObjNum 0 R >>";
+        }
+        $resources .= " >>";
+        $emit($pageObjNums[$i], "<< /Type /Page /Parent $pagesRootObjNum 0 R /MediaBox [0 0 $W $H] /Contents " . $contentObjNums[$i] . " 0 R /Resources $resources >>");
+        $kids[] = $pageObjNums[$i] . " 0 R";
     }
 
     // Pages & Catalog
-    $emit(4, "<< /Type /Pages /Kids [3 0 R] /Count 1 >>");
-    $emit(5, "<< /Type /Catalog /Pages 4 0 R >>");
+    $emit($pagesRootObjNum, "<< /Type /Pages /Kids [" . implode(' ', $kids) . "] /Count " . count($kids) . " >>");
+    $emit($catalogObjNum, "<< /Type /Catalog /Pages $pagesRootObjNum 0 R >>");
 
     // XRef
     $start = strlen($out);
     $out .= "xref\n0 " . count($xref) . "\n";
     foreach ($xref as $i=>$ofs) { $out .= sprintf("%010d %05d %s\n", $ofs, $i?0:65535, $i?'n':'f'); }
-    $out .= "trailer << /Size " . count($xref) . " /Root 5 0 R >>\nstartxref\n$start\n%%EOF";
+    $out .= "trailer << /Size " . count($xref) . " /Root $catalogObjNum 0 R >>\nstartxref\n$start\n%%EOF";
     return $out;
 }
 
@@ -307,7 +390,7 @@ function amount_in_words_indian($amount): string {
         if ($num) {
             $hund = intdiv($num,100); $rem = $num%100;
             $seg = [];
-            if ($hund) $seg[] = $ones[$hund] . ' Hundred';
+            if ($hund) $seg[] = $fmt2($hund) . ' Hundred';
             if ($rem) $seg[] = $fmt2($rem);
             $parts[] = trim(implode(' ', $seg)) . ($label?(' '.$label):'');
         }

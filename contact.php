@@ -11,6 +11,8 @@ $extraHead = '<style>
   @media (max-width:700px){ .row{grid-template-columns:1fr} }
   .btn{appearance:none;border:none;border-radius:10px;padding:10px 12px;background:linear-gradient(135deg,#e11d48,#f97316);color:#fff;font-weight:800;cursor:pointer;box-shadow:0 6px 16px rgba(175,0,45,.25)}
 </style>';
+require_once __DIR__ . '/lib/routes.php';
+$routeExt = route_extension();
 include __DIR__ . '/inc/header.php';
 ?>
 
@@ -106,7 +108,7 @@ document.getElementById('contactForm').addEventListener('submit', function(e){
     const form = e.target;
     const data = new FormData(form);
 
-    fetch('send_mail.php', {   // <-- call the separate PHP file
+    fetch('/send_mail' + <?= json_encode($routeExt) ?>, {
         method: 'POST',
         body: data
     })

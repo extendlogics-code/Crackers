@@ -1,6 +1,8 @@
 <?php
 $title = 'PKS Crackers — Home';
 require_once __DIR__ . '/lib/db.php';
+require_once __DIR__ . '/lib/routes.php';
+$routeExt = route_extension();
 
 function product_img(string $sku, string $name = '', string $fallback = ''): string {
   $base = __DIR__ . '/images/products/' . preg_replace('/[^A-Za-z0-9_-]/','-',$sku);
@@ -202,8 +204,8 @@ include __DIR__ . '/inc/header.php';
         <h1>Celebrate Brighter. Celebrate Safer.</h1>
         <p>Premium crackers curated for every festival night — rockets, sparklers, flower pots and more at honest prices.</p>
         <div class="cta-row">
-          <a class="btn" href="shop.php">Shop Now</a>
-          <a class="btn ghost" href="about.php">Why PKS</a>
+          <a class="btn" href="/shop<?= $routeExt ?>">Shop Now</a>
+          <a class="btn ghost" href="/about<?= $routeExt ?>">Why PKS</a>
         </div>
       </div> -->
    <!-- </section>-->
@@ -273,17 +275,17 @@ include __DIR__ . '/inc/header.php';
           <br>
           <br>
          <h1 class="welcome-title">Our Products</h1>
-        <p style="color:var(--muted);max-width:900px text-align:center">Our motto is to make every festival celebration bright and safe.This, we bring out with our wide range of firecrackers. With over 200 varieties of crackers developed and marketed every year, we are among the most sought brands in the Sivakasi region and around the country. Our products are known for their safety and we take great efforts to ensure that all our orders are delivered in a standard time frame with an economical pricing.</p>
+        <p style="color:var(--muted);max-width:900px;text-align:center">Our motto is to make every festival celebration bright and safe.This, we bring out with our wide range of firecrackers. With over 200 varieties of crackers developed and marketed every year, we are among the most sought brands in the Sivakasi region and around the country. Our products are known for their safety and we take great efforts to ensure that all our orders are delivered in a standard time frame with an economical pricing.</p>
        <!-- <div class="cat-grid">
           <?php foreach ($catList as $c): ?>
-            <a class="cat" href="shop.php?cat=<?= urlencode($c) ?>">
+            <a class="cat" href="/shop<?= $routeExt ?>?cat=<?= urlencode($c) ?>">
               <div class="icon">🎇</div>
               <div><?= htmlspecialchars($c) ?></div>
             </a>
           <?php endforeach; ?>
         </div>
         <div style="text-align:center;margin-top:10px">
-          <a class="btn ghost" href="shop.php" style="text-decoration:none">View More Products</a>
+          <a class="btn ghost" href="/shop<?= $routeExt ?>" style="text-decoration:none">View More Products</a>
         </div>-->
       </section>
       
@@ -390,7 +392,7 @@ include __DIR__ . '/inc/header.php';
     </div>
   </div>
 
-  <a href="shop.php" class="view-more-btn">View More</a>
+  <a href="/shop<?= $routeExt ?>" class="view-more-btn">View More</a>
 </div>
 
       </section>
@@ -486,7 +488,7 @@ include __DIR__ . '/inc/header.php';
   <div class="inner">
     <h3>Bundle & Save</h3>
     <p>Check out combo packs curated for family celebrations. More sparkle, better value.</p>
-    <div><a class="btn" href="shop.php">Browse Combos</a></div>
+    <div><a class="btn" href="/shop<?= $routeExt ?>">Browse Combos</a></div>
   </div>
 </section>
 
@@ -574,7 +576,7 @@ include __DIR__ . '/inc/header.php';
     </details>
     <details>
       <summary>What is the minimum order?</summary>
-      <div>₹3000 including a fixed ₹150 shipping charge.</div>
+      <div>₹2000 on products.</div>
     </details>
   </div>
 </section>
@@ -583,7 +585,7 @@ include __DIR__ . '/inc/header.php';
           <h3>Our Promise</h3>
           <p style="color:var(--muted)">We hand-pick quality crackers from trusted brands, pack them safely, and deliver with care. Whether it’s a small family gathering or a grand celebration, we’ve got the sparkle you need.</p>
           <br>
-          <a class="btn" href="contact.php">Talk to Us</a>
+          <a class="btn" href="/contact<?= $routeExt ?>">Talk to Us</a>
         </div>
       </section>
  
@@ -661,7 +663,7 @@ var swiper = new Swiper(".myBrandSwiper", {
 
     <!-- Floating CTA (customize to WhatsApp when number is available) -->
     <div class="floating-cta">
-      <a href="contact.php" aria-label="Chat with us">
+      <a href="/contact<?= $routeExt ?>" aria-label="Chat with us">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12c0 1.733.44 3.363 1.214 4.79L2 22l5.31-1.2C8.7 21.56 10.306 22 12 22Z" stroke="white" stroke-opacity=".85" stroke-width="1.5"/><path d="M8.5 10.5c0 3.038 2.462 5.5 5.5 5.5" stroke="white" stroke-width="1.5" stroke-linecap="round"/></svg>
         <span>Chat with us</span>
       </a>

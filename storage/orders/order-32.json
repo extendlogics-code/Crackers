@@ -1,0 +1,51 @@
+{
+    "order_id": 32,
+    "customer_id": 20,
+    "customer": {
+        "name": "R. Karthikeyan",
+        "email": "svasan029@gmail.com",
+        "phone": "8610878580",
+        "address_line1": "no 24 maran nagar poonamallee",
+        "address_line2": "",
+        "city": "Chennai",
+        "state": "Tamil Nadu",
+        "pincode": "600056"
+    },
+    "items": [
+        {
+            "sku": "50CS-002",
+            "name": "50CM COLOUR SPARKLERS",
+            "price": 179.99999999999997,
+            "qty": 10
+        },
+        {
+            "sku": "50CS-001",
+            "name": "50CM ELECTRIC SPARKLERS",
+            "price": 159.99999999999997,
+            "qty": 10
+        },
+        {
+            "sku": "CMSS-010",
+            "name": "520 SHOT MULTICOLOUR",
+            "price": 6499.999999999998,
+            "qty": 2
+        },
+        {
+            "sku": "FSI-022",
+            "name": "BADA PEACOCK",
+            "price": 399.9999999999999,
+            "qty": 5
+        },
+        {
+            "sku": "GW-005",
+            "name": "10000 WALA",
+            "price": 1599.9999999999995,
+            "qty": 2
+        }
+    ],
+    "subtotal": 21599.999999999996,
+    "total": 21599.999999999996,
+    "notes": null,
+    "pdf_path": "storage\/invoices\/order-32.pdf",
+    "created_at": "2025-10-10T18:48:24+00:00"
+}

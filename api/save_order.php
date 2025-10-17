@@ -28,7 +28,6 @@ function ensure_schema(PDO $pdo): void {
       id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
       customer_id BIGINT UNSIGNED NOT NULL,
       subtotal DECIMAL(10,2) NULL,
-      shipping DECIMAL(10,2) NULL,
       total DECIMAL(10,2) NOT NULL,
       status VARCHAR(32) NOT NULL DEFAULT 'new',
       notes TEXT NULL,
@@ -77,6 +76,7 @@ function ensure_schema(PDO $pdo): void {
     try { $pdo->exec("ALTER TABLE orders ADD COLUMN IF NOT EXISTS transaction_id VARCHAR(64) NULL"); } catch (Throwable $__) {}
     try { $pdo->exec("ALTER TABLE orders ADD COLUMN IF NOT EXISTS pdf_path VARCHAR(255) NULL"); } catch (Throwable $__) {}
     try { $pdo->exec("ALTER TABLE orders ADD COLUMN IF NOT EXISTS pdf_blob LONGBLOB NULL"); } catch (Throwable $__) {}
+    try { $pdo->exec("ALTER TABLE orders DROP COLUMN IF EXISTS shipping"); } catch (Throwable $__) {}
     try { $pdo->exec("ALTER TABLE products ADD COLUMN IF NOT EXISTS unit VARCHAR(32) NOT NULL DEFAULT 'Box'"); } catch (Throwable $__) {}
     try { $pdo->exec("ALTER TABLE products ADD COLUMN IF NOT EXISTS stock_qty INT NOT NULL DEFAULT 0"); } catch (Throwable $__) {}
 
@@ -209,12 +209,10 @@ try {
         $calc_items[] = [ 'sku'=>$sku, 'name'=>$nameIn ?: ($sku ?: 'Item'), 'price'=>$price, 'qty'=>$qty ];
         $calc_subtotal += $price * $qty;
     }
-    $calc_shipping = 150.0;
-    $calc_total = max(0.0, $calc_subtotal + $calc_shipping);
+    $calc_total = max(0.0, $calc_subtotal);
 
     // Use computed totals, ignore client-provided totals
     $subtotal = $calc_subtotal;
-    $shipping = $calc_shipping;
     $total = $calc_total;
     $notes = trim($in['notes'] ?? '');
     $transaction_id = trim($in['transaction_id'] ?? '');
@@ -238,8 +236,8 @@ try {
     if ($total <= 0) {
         respond(422, ['ok' => false, 'error' => 'Order total must be > 0']);
     }
-    if ($total < 3000) {
-        respond(422, ['ok' => false, 'error' => 'Minimum order amount is ₹3000']);
+    if ($total < 2000) {
+        respond(422, ['ok' => false, 'error' => 'Minimum order amount is ₹2000']);
     }
     if ($transaction_id === '') {
         respond(422, ['ok' => false, 'error' => 'Transaction ID is required']);
@@ -278,8 +276,8 @@ try {
     }
 
     // Insert order
-    $st = $pdo->prepare('INSERT INTO orders (customer_id, subtotal, shipping, total, notes, transaction_id) VALUES (?,?,?,?,?,?)');
-    $st->execute([$customer_id, $subtotal, $shipping, $total, $notes ?: null, $transaction_id]);
+    $st = $pdo->prepare('INSERT INTO orders (customer_id, subtotal, total, notes, transaction_id) VALUES (?,?,?,?,?)');
+    $st->execute([$customer_id, $subtotal, $total, $notes ?: null, $transaction_id]);
     $order_id = (int)$pdo->lastInsertId();
 
     // Insert items
@@ -298,7 +296,6 @@ try {
         'customer' => $customer,
         'items' => [],
         'subtotal' => (float)$subtotal,
-        'shipping' => (float)$shipping,
         'discount' => 0,
         'total' => (float)$total,
         'est_no' => $estNo,
@@ -351,7 +348,6 @@ try {
                 ];
             }, $calc_items),
             'subtotal' => $subtotal,
-            'shipping' => $shipping,
             'total' => $total,
             'notes' => $notes ?: null,
             'pdf_path' => $relPath,

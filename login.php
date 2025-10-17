@@ -1,14 +1,16 @@
 <?php
 require_once __DIR__ . '/../lib/auth.php';
+require_once __DIR__ . '/../lib/routes.php';
 admin_session_start();
-if (isset($_GET['logout'])) { admin_logout(); header('Location: /inventory/login.php'); exit; }
+$routeExt = route_extension();
+if (isset($_GET['logout'])) { admin_logout(); header('Location: /inventory/login' . $routeExt); exit; }
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   if (!function_exists('admin_csrf_check')) { require_once __DIR__ . '/../lib/auth.php'; }
   if (!admin_csrf_check($_POST['csrf'] ?? '')) { http_response_code(400); $err = 'Invalid session, please try again'; }
   $user = trim($_POST['user'] ?? '');
   $pass = trim($_POST['pass'] ?? '');
   if (empty($err) && admin_login($user, $pass)) {
-    header('Location: /inventory/dashboard.php');
+    header('Location: /inventory/dashboard' . $routeExt);
     exit;
   }
   $err = 'Invalid credentials';

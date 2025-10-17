@@ -1,0 +1,94 @@
+{
+    "order_id": 29,
+    "customer_id": 19,
+    "customer": {
+        "name": "Murugan",
+        "email": "vmurugan2011@gmail.com",
+        "phone": "8122311868",
+        "address_line1": "S.P.M ENTERPRISES Old No.10\/New No.21 Thiruveethi Amman Koil St Mannurpet, Ch-80  State: TAMILNADU",
+        "address_line2": "S.P.M ENTERPRISES Old No.10\/New No.21 Thiruveethi Amman Koil St Mannurpet, Ch-80  State: TAMILNADU",
+        "city": "Chennai",
+        "state": "Tamil Nadu",
+        "pincode": "600080"
+    },
+    "items": [
+        {
+            "sku": "10CS-003",
+            "name": "10CM GREEN SPARKLERS",
+            "price": 19.999999999999996,
+            "qty": 10
+        },
+        {
+            "sku": "BI-009",
+            "name": "MINI MONEY BANK",
+            "price": 39.99999999999999,
+            "qty": 25
+        },
+        {
+            "sku": "CMSS-005",
+            "name": "60 SHOT MULTICOLOUR",
+            "price": 799.9999999999998,
+            "qty": 1
+        },
+        {
+            "sku": "EB-003",
+            "name": "CLASSIC EXPLOSIVE BOMB (5 Ply)",
+            "price": 125.99999999999997,
+            "qty": 5
+        },
+        {
+            "sku": "EB-002",
+            "name": "KING OF KING (3 Ply)",
+            "price": 99.99999999999997,
+            "qty": 5
+        },
+        {
+            "sku": "EB-005",
+            "name": "KING RANSOME (9 Ply)",
+            "price": 239.99999999999994,
+            "qty": 2
+        },
+        {
+            "sku": "FSI-008",
+            "name": "DAISY FOUNTAIN (5 Pcs)",
+            "price": 289.99999999999994,
+            "qty": 2
+        },
+        {
+            "sku": "FSI-004",
+            "name": "GOLD SHOWER (5Pcs)",
+            "price": 79.99999999999999,
+            "qty": 10
+        },
+        {
+            "sku": "FSI-032",
+            "name": "TWEET 6000",
+            "price": 139.99999999999997,
+            "qty": 3
+        },
+        {
+            "sku": "GW-005",
+            "name": "10000 WALA",
+            "price": 1599.9999999999995,
+            "qty": 1
+        },
+        {
+            "sku": "SC-002",
+            "name": "4 \" LAKSHMI",
+            "price": 14.999999999999996,
+            "qty": 25
+        },
+        {
+            "sku": "TW-001",
+            "name": "1 1\/2 \" TWINKLING STAR",
+            "price": 21.999999999999996,
+            "qty": 10
+        }
+    ],
+    "subtotal": 7604.999999999998,
+    "shipping": 300,
+    "total": 7904.999999999998,
+    "notes": null,
+    "pdf_path": "storage\/invoices\/order-29.pdf",
+    "created_at": "2025-10-06T05:49:04+00:00"
+}

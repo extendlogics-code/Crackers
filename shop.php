@@ -1,6 +1,8 @@
 <?php
 require_once __DIR__ . '/lib/db.php';
 require_once __DIR__ . '/lib/categories.php';
+require_once __DIR__ . '/lib/routes.php';
+$routeExt = route_extension();
 
 function load_products_json(): array {
   $path = __DIR__ . '/data/products.json';
@@ -116,7 +118,7 @@ $extraHead = <<<HEAD
   .count{border:2px solid transparent;border-radius:999px;padding:6px 10px;background:#fff;color:#111;font-weight:700;
     background-image: linear-gradient(#ffffff,#ffffff), linear-gradient(135deg,#e11d48,#ff7a18); background-origin:border-box; background-clip:padding-box,border-box}
   @media (max-width:640px){
-    .toolbar{position:sticky; top:56px; background:var(--bg); z-index:6; padding:8px; border-bottom:1px solid rgba(0,0,0,.08); margin-bottom:8px}
+    .toolbar{position:sticky; top:10px; background:var(--bg); z-index:6; padding:32px 8px 8px 8px; border-bottom:1px solid rgba(0,0,0,.08); margin-bottom:8px}
     .toolbar input[type="text"], .toolbar select{width:100%}
     .toolbar label{width:100%}
     .toggle{width:100%; justify-content:space-between}
@@ -177,7 +179,7 @@ $extraHead = <<<HEAD
   .modal.open{display:flex}
   .modal .box{background:#0b1020;border:1px solid rgba(255,255,255,.15);border-radius:12px;max-width:900px;width:92%;padding:10px}
   .modal .viewer{position:relative;aspect-ratio:4/3;background:#000;display:grid;place-items:center;border-radius:8px;overflow:hidden}
-  .modal .viewer img{max-width:100%;max-height:100%}
+  .modal .viewer img{max-width:100%;max-height:100%;overflow:auto}
   .modal .nav{position:absolute;top:50%;transform:translateY(-50%);width:100%;display:flex;justify-content:space-between}
   .modal .nav button{background:rgba(255,255,255,.2);border:0;color:#fff;font-weight:800;padding:8px 10px;border-radius:8px;cursor:pointer}
   .modal .actions{display:flex;justify-content:space-between;align-items:center;margin-top:8px}
@@ -228,10 +230,142 @@ include __DIR__ . '/inc/header.php';
     height: auto;    /* prevent zoom/crop */
   }
 }
+@media (max-width: 768px) {
+  #list {
+    overflow-x: hidden; /* kill horizontal scroll */
+  }
 
+  #list table,
+  #list thead,
+  #list tbody,
+  #list tr,
+  #list th,
+  #list td {
+    display: block;
+    width: 100% !important;   /* full width always */
+    max-width: 100% !important;
+    min-width: auto !important; /* reset desktop widths */
+    box-sizing: border-box;
+  }
+
+  #list thead {
+    display: none; /* hide table headers */
+  }
+
+  #list tr {
+    margin-bottom: 12px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    padding: 8px;
+    background: #fff;
+  }
+
+  #list td {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 10px;
+    border: none !important;
+    white-space: normal;       /* prevent hidden text */
+    overflow-wrap: break-word; /* wrap long words */
+  }
+
+  #list td::before {
+    content: attr(data-label);
+    font-weight: 600;
+    margin-right: 10px;
+    color: #444;
+    flex: 1;
+    text-align: left;
+  }
+
+  /* Image cell centered */
+  #list td:first-child {
+   display: flex !important;
+        justify-content: flex-start;
+        align-items: center;
+        padding: 8px 0 !important;
+        flex-wrap: nowrap;
+        flex-direction: column;
+        align-content: space-around;
+
+    
+  }
+  #list td:first-child::before {
+    content: "";
+  }
+  /* Thumb image */
+  #list td:first-child img.thumb {
+    width: 56px !important;
+    height: 56px !important;
+    display: block !important;
+    object-fit: cover;
+  }
+
+  /* Qty column stacked */
+  #list td[data-label="Qty"] {
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 6px;
+  }
+
+  /* Category row */
+  #list tr.cat-row {
+    background: #f3f4f6;
+    font-weight: bold;
+    border: none;
+    border-radius: 6px;
+    padding: 10px;
+  }
+  #list tr.cat-row td {
+    display: block;
+    width: 100% !important;
+    padding: 8px 10px;
+  }
+}
 
   
   
+/* Hide on desktop */
+.mobile-sticky-offer {
+    display: none;
+}
+
+/* Mobile view */
+@media (max-width: 768px) {
+    .mobile-sticky-offer {
+        display: block;
+        position: fixed;
+        bottom: 10px;
+        right: 10px;
+        width: 15%;
+        max-width: 300px;
+        z-index: 9999;
+        border-radius: 12px;
+        
+        animation: flash 0.5s infinite alternate; /* Faster blink */
+    }
+    .mdnn
+    {
+        display:none;
+    }
+    .qmm{
+        width: 92px;
+        text-align:right;
+    }
+
+    .mobile-sticky-offer img {
+        width: 100%;
+        display: block;
+        border-radius: inherit;
+    }
+
+    /* Faster blinking with clear visibility */
+    @keyframes flash {
+        0%, 100% { opacity: 1; transform: scale(1); }
+        50% { opacity: 0.8; transform: scale(1.05); } /* Slight fade */
+    }
+}
   
 </style>
 
@@ -246,6 +380,9 @@ include __DIR__ . '/inc/header.php';
 </section>
 
 <section>
+    
+<!--<div class="mobile-sticky-offer">
+<img src="images/s1.png" alt="80% OFF Flash Sale" /></div>-->
 
 <div class="wrap">
   <div class="toolbar">
@@ -262,82 +399,88 @@ include __DIR__ . '/inc/header.php';
     </label>
   </div>
 
-  <div class="table-responsive hidden" id="list" style="margin-top:12px">
-    <table>
-      <thead>
-        <tr>
-          <th style="width:90px">Image</th>
-          <th>Product</th>
-          <th class="col-unit" style="width:100px">Unit</th>
-          <th class="col-mrp" style="width:120px">MRP</th>
-          <th style="width:120px">Price</th>
-          <th style="width:140px">Qty</th>
-          <th style="width:140px">Total</th>
-        </tr>
-      </thead>
-      <tbody>
-      <?php 
-        usort($products, function($a,$b){ return strcasecmp($a['category'] ?? '', $b['category'] ?? ''); });
-        $lastCat = null;
-        foreach ($products as $p): 
-          $price=(float)($p['price']??0); 
-          $disc=(int)($p['discount_pct']??0); 
-          $final=$price*(1-$disc/100); 
-          $imgs = product_images($p['id'], $p['name']); 
-          $cat = strtoupper(trim($p['category'] ?? ''));
-          $unit = htmlspecialchars($p['unit'] ?? 'Box');
-          if ($lastCat !== $cat) { $lastCat = $cat; ?>
-            <tr class="cat-row" data-category="<?= htmlspecialchars($lastCat) ?>"><td colspan="7"><?= htmlspecialchars($lastCat ?: 'OTHERS') ?></td></tr>
-          <?php }
-          $gallery = [];
-          if (!empty($p['image'])) { $gallery[] = (string)$p['image']; }
-          foreach ($imgs as $im) { if (!in_array($im, $gallery, true)) $gallery[] = $im; }
-          $primary = !empty($p['image'])
-                      ? (string)$p['image']
-                      : (!empty($imgs) ? $imgs[0] : 'https://via.placeholder.com/400x300?text=PKS+Crackers');
-      ?>
-        <tr 
-          data-id="<?= htmlspecialchars($p['id']) ?>" 
-          data-name="<?= htmlspecialchars($p['name']) ?>" 
-          data-category="<?= htmlspecialchars($cat) ?>" 
-          data-price="<?= number_format($final,2,'.','') ?>" 
-          data-images='<?= htmlspecialchars(json_encode($gallery, JSON_UNESCAPED_SLASHES)) ?>'>
-          <td>
-            <?php if (!empty($primary)): ?>
-              <img class="thumb open-gallery"
-                   src="<?= htmlspecialchars($primary) ?>"
-                   alt="<?= htmlspecialchars($p['name']) ?>"
-                   loading="lazy" decoding="async" fetchpriority="low"
-                   width="72" height="72">
-            <?php else: ?>
-              <div class="thumb" style="background:#eee"></div>
+ <div class="table-responsive hidden" id="list" style="margin-top:12px">
+  <table>
+    <thead>
+      <tr>
+        <th style="width:90px">Image</th>
+        <th>Product</th>
+        <th class="col-unit" style="width:100px">Unit</th>
+        <th class="col-mrp" style="width:120px">MRP</th>
+        <th style="width:120px">Price</th>
+        <th style="width:140px">Qty</th>
+        <th style="width:140px">Total</th>
+      </tr>
+    </thead>
+    <tbody>
+    <?php 
+      usort($products, function($a,$b){ return strcasecmp($a['category'] ?? '', $b['category'] ?? ''); });
+      $lastCat = null;
+      foreach ($products as $p): 
+        $price=(float)($p['price']??0); 
+        $disc=(int)($p['discount_pct']??0); 
+        $final=$price*(1-$disc/100); 
+        $imgs = product_images($p['id'], $p['name']); 
+        $cat = strtoupper(trim($p['category'] ?? ''));
+        $unit = htmlspecialchars($p['unit'] ?? 'Box');
+        if ($lastCat !== $cat) { $lastCat = $cat; ?>
+          <tr class="cat-row" data-category="<?= htmlspecialchars($lastCat) ?>">
+            <td colspan="7"><?= htmlspecialchars($lastCat ?: 'OTHERS') ?></td>
+          </tr>
+        <?php }
+        $gallery = [];
+        if (!empty($p['image'])) { $gallery[] = (string)$p['image']; }
+        foreach ($imgs as $im) { if (!in_array($im, $gallery, true)) $gallery[] = $im; }
+        $primary = !empty($p['image'])
+                    ? (string)$p['image']
+                    : (!empty($imgs) ? $imgs[0] : 'https://via.placeholder.com/400x300?text=PKS+Crackers');
+    ?>
+      <tr 
+        data-id="<?= htmlspecialchars($p['id']) ?>" 
+        data-name="<?= htmlspecialchars($p['name']) ?>" 
+        data-category="<?= htmlspecialchars($cat) ?>" 
+        data-price="<?= number_format($final,2,'.','') ?>" 
+        data-images='<?= htmlspecialchars(json_encode($gallery, JSON_UNESCAPED_SLASHES)) ?>'>
+        
+        <td data-label="Image">
+          <?php if (!empty($primary)): ?>
+            <img class="thumb open-gallery"
+                 src="<?= htmlspecialchars($primary) ?>"
+                 alt="<?= htmlspecialchars($p['name']) ?>"
+                 loading="lazy" decoding="async" fetchpriority="low"
+                 width="72" height="72">
+          <?php else: ?>
+            <div class="thumb" style="background:#eee"></div>
+          <?php endif; ?>
+        </td>
+
+        <td data-label="Product"><strong><?= htmlspecialchars($p['name']) ?></strong></td>
+        <td data-label="Unit" class="col-unit"><?= $unit ?></td>
+        <td data-label="MRP" class="col-mrp"><s>₹<?= number_format($price,2) ?></s></td>
+        <td data-label="Price">₹<?= number_format($final,2) ?></td>
+        <td data-label="Qty">
+          <div style="display:flex;align-items:center;gap:8px">
+            <input type="number" class="qty-input qmm" min="0" step="1" inputmode="numeric" pattern="[0-9]*" value="0" style="width:100px;padding:8px;border-radius:8px;background:#fff;color:#111;border:2px solid #ef4444">
+            <?php if (!empty($gallery)): ?>
+              <button type="button" class="btn ghost open-gallery mdnn" style="padding:6px 8px">View</button>
             <?php endif; ?>
-          </td>
-          <td><strong><?= htmlspecialchars($p['name']) ?></strong></td>
-          <td class="col-unit"><?= $unit ?></td>
-          <td class="col-mrp"><s>₹<?= number_format($price,2) ?></s></td>
-          <td>₹<?= number_format($final,2) ?></td>
-          <td>
-            <div style="display:flex;align-items:center;gap:8px">
-              <input type="number" class="qty-input" min="0" step="1" inputmode="numeric" pattern="[0-9]*" value="0" style="width:100px;padding:8px;border-radius:8px;background:#fff;color:#111;border:2px solid #ef4444">
-              <?php if (!empty($gallery)): ?><button type="button" class="btn ghost open-gallery" style="padding:6px 8px">View</button><?php endif; ?>
-            </div>
-          </td>
-          <td class="line-total">₹0.00</td>
-        </tr>
-      <?php endforeach; ?>
-      </tbody>
-    </table>
-  </div>
+          </div>
+        </td>
+        <td data-label="Total" class="line-total">₹0.00</td>
+      </tr>
+    <?php endforeach; ?>
+    </tbody>
+  </table>
+</div>
 </div>
 
-<form class="sticky" id="checkoutForm" method="post" action="checkout.php">
+<form class="sticky" id="checkoutForm" method="post" action="/checkout.php">
   <input type="hidden" name="order_json" id="order_json" value="{}">
   <div class="bar1">
     <div><small style="color:var(--muted)">Items</small> <strong id="sum_items">0</strong></div>
     <div><small style="color:var(--muted)">Subtotal</small> <strong id="sum_sub">₹0.00</strong></div>
     <div><small style="color:var(--muted)">Grand Total</small> <strong id="sum_grand">₹0.00</strong></div>
-    <div id="min_note" style="color:#fbbf24">Minimum order: ₹3000</div>
+    <div id="min_note" style="color:#fbbf24">Minimum order: ₹2000</div>
     <div style="margin-left:auto"></div>
     <button type="button" class="btn ghost" id="clear">Clear</button>
     <button type="submit" class="btn" id="checkoutBtn">Checkout</button>
@@ -413,7 +556,7 @@ include __DIR__ . '/inc/header.php';
   }
   function closeGallery(){ if(!modal) return; modal.classList.remove('open'); }
 
-  const MIN_TOTAL = 3000;
+  const MIN_TOTAL = 2000;
   const recalc = rafThrottle(function(){
     let items=0, subtotal=0; const lines=[];
     // iterate visible rows only (skip hidden to reduce work)
