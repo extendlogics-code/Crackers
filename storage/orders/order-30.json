@@ -1,0 +1,100 @@
+{
+    "order_id": 30,
+    "customer_id": 20,
+    "customer": {
+        "name": "srinivasan G",
+        "email": "svasan029@gmail.com",
+        "phone": "8190003193",
+        "address_line1": "no 13 2nd cross street avadi road",
+        "address_line2": "karayanchavadi poonamalle",
+        "city": "Chennai",
+        "state": "Tamil Nadu",
+        "pincode": "600056"
+    },
+    "items": [
+        {
+            "sku": "10CS-002",
+            "name": "10CM COLOUR SPARKLERS",
+            "price": 17.999999999999996,
+            "qty": 5
+        },
+        {
+            "sku": "10CS-001",
+            "name": "10CM ELECTRIC SPARKLERS",
+            "price": 15.999999999999996,
+            "qty": 5
+        },
+        {
+            "sku": "10CS-003",
+            "name": "10CM GREEN SPARKLERS",
+            "price": 19.999999999999996,
+            "qty": 5
+        },
+        {
+            "sku": "10CS-004",
+            "name": "10CM RED SPARKLERS",
+            "price": 21.999999999999996,
+            "qty": 5
+        },
+        {
+            "sku": "15CS-006",
+            "name": "15CM 5 IN 1 SPARKLERS",
+            "price": 279.99999999999994,
+            "qty": 1
+        },
+        {
+            "sku": "15CS-001",
+            "name": "15CM ELECTRIC SPARKLERS",
+            "price": 37.99999999999999,
+            "qty": 5
+        },
+        {
+            "sku": "30CS-002",
+            "name": "30CM COLOUR SPARKLERS",
+            "price": 41.99999999999999,
+            "qty": 2
+        },
+        {
+            "sku": "30CS-001",
+            "name": "30CM ELECTRIC SPARKLERS",
+            "price": 37.99999999999999,
+            "qty": 2
+        },
+        {
+            "sku": "FP-004",
+            "name": "FLOWER POTS ASHOKA (10 Pcs)",
+            "price": 119.99999999999997,
+            "qty": 10
+        },
+        {
+            "sku": "GC-001",
+            "name": "CHAKKARA BIG (10Pcs)",
+            "price": 39.99999999999999,
+            "qty": 5
+        },
+        {
+            "sku": "GC-003",
+            "name": "CHAKKARA DELUXE (10Pcs)",
+            "price": 129.99999999999997,
+            "qty": 2
+        },
+        {
+            "sku": "GC-002",
+            "name": "CHAKKARA SPL (10Pcs)",
+            "price": 79.99999999999999,
+            "qty": 5
+        },
+        {
+            "sku": "GC-004",
+            "name": "CHAKKARA SUPER DELUXE (10Pcs)",
+            "price": 199.99999999999994,
+            "qty": 2
+        }
+    ],
+    "subtotal": 3469.9999999999995,
+    "shipping": 300,
+    "total": 3769.9999999999995,
+    "notes": null,
+    "pdf_path": "storage\/invoices\/order-30.pdf",
+    "created_at": "2025-10-07T12:49:11+00:00"
+}

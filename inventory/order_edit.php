@@ -1,8 +1,10 @@
 <?php
 require_once __DIR__ . '/../lib/auth.php';
 require_once __DIR__ . '/../lib/db.php';
+require_once __DIR__ . '/../lib/routes.php';
 admin_require_login();
 $pdo = get_pdo();
+$routeExt = route_extension();
 
 $id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
 $order = null;
@@ -22,7 +24,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   if (!admin_csrf_check($_POST['csrf'] ?? '')) { http_response_code(400); echo 'Invalid CSRF'; exit; }
   $status = trim($_POST['status'] ?? 'new');
   $subtotal = (float)($_POST['subtotal'] ?? 0);
-  $shipping = (float)($_POST['shipping'] ?? 0);
   $total = (float)($_POST['total'] ?? 0);
   $notes = trim($_POST['notes'] ?? '');
 
@@ -48,14 +49,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       $customer_id = (int)$pdo->lastInsertId();
     }
     if ($id) {
-      $st = $pdo->prepare('UPDATE orders SET customer_id=?, subtotal=?, shipping=?, total=?, status=?, notes=? WHERE id=?');
-      $st->execute([$customer_id, $subtotal, $shipping, $total, $status, $notes ?: null, $id]);
+      $st = $pdo->prepare('UPDATE orders SET customer_id=?, subtotal=?, total=?, status=?, notes=? WHERE id=?');
+      $st->execute([$customer_id, $subtotal, $total, $status, $notes ?: null, $id]);
     } else {
-      $st = $pdo->prepare('INSERT INTO orders (customer_id, subtotal, shipping, total, status, notes) VALUES (?,?,?,?,?,?)');
-      $st->execute([$customer_id, $subtotal, $shipping, $total, $status, $notes ?: null]);
+      $st = $pdo->prepare('INSERT INTO orders (customer_id, subtotal, total, status, notes) VALUES (?,?,?,?,?)');
+      $st->execute([$customer_id, $subtotal, $total, $status, $notes ?: null]);
       $id = (int)$pdo->lastInsertId();
     }
-    header('Location: /inventory/dashboard.php');
+    header('Location: /inventory/dashboard' . $routeExt);
     exit;
   }
 }
@@ -85,7 +86,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   <body>
     <header>
       <strong><?= $id? 'Edit Order #'.$id : 'Create Order' ?></strong>
-      <div><a class="ghost btn" href="/inventory/dashboard.php">Back</a></div>
+      <div><a class="ghost btn" href="/inventory/dashboard<?= $routeExt ?>">Back</a></div>
     </header>
     <div class="wrap">
       <?php if ($err): ?><div class="err"><?= htmlspecialchars($err) ?></div><?php endif; ?>
@@ -120,9 +121,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         <div class="row">
           <label>Subtotal<input type="number" step="0.01" name="subtotal" value="<?= htmlspecialchars($order['subtotal'] ?? '0') ?>" required></label>
-          <label>Shipping<input type="number" step="0.01" name="shipping" value="<?= htmlspecialchars($order['shipping'] ?? '0') ?>"></label>
+          <label>Total<input type="number" step="0.01" name="total" value="<?= htmlspecialchars($order['total'] ?? ($order['subtotal'] ?? '0')) ?>" required></label>
         </div>
-        <label>Total<input type="number" step="0.01" name="total" value="<?= htmlspecialchars($order['total'] ?? '0') ?>" required></label>
         <div class="row">
           <label>Status
             <select name="status">
@@ -136,7 +136,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         <div style="margin-top:12px;display:flex;gap:8px">
           <button class="btn" type="submit">Save</button>
-          <a class="ghost btn" href="/inventory/dashboard.php">Cancel</a>
+          <a class="ghost btn" href="/inventory/dashboard<?= $routeExt ?>">Cancel</a>
         </div>
       </form>
     </div>

@@ -1,6 +1,8 @@
 <?php
 // Printable HTML invoice preview before placing order
 require_once __DIR__ . '/lib/pdf.php'; // for amount_in_words_indian
+require_once __DIR__ . '/lib/routes.php';
+$routeExt = route_extension();
 $order = [];
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   $order = json_decode($_POST['order_json'] ?? '{}', true) ?: [];
@@ -11,13 +13,14 @@ $customer = $order['customer'] ?? [];
 $items = $order['items'] ?? [];
 $snoStart = (int)($order['sno_start'] ?? 1);
 $subtotal = (float)($order['subtotal'] ?? 0);
-$shipping = (float)($order['shipping'] ?? 0);
+$total = (float)($order['total'] ?? $subtotal);
 $discount = (float)($order['discount'] ?? 0);
 $discount_pct = isset($order['discount_pct']) ? (float)$order['discount_pct'] : null;
 $disc_amount = $discount_pct !== null ? round($subtotal * $discount_pct/100, 2) : $discount;
 $sgst = (float)($order['sgst'] ?? 0);
 $cgst = (float)($order['cgst'] ?? 0);
-$net = max(0, $subtotal - $disc_amount + $shipping + $sgst + $cgst);
+// Align preview with PDF: NET mirrors stored total (shipping removed)
+$net = max(0, $total);
 
 // Auto-generate Estimation No: EST-YYYYMMDD-HHMMSS-<6 digit order no or time>
 $now = new DateTime('now');
@@ -105,9 +108,22 @@ $estNo = $order['est_no'] ?? ('EST-' . $datePart . '-' . $ordPart);
       <div class="two">
         <div class="box">
           <h4>Ship To : <?= h($customer['name'] ?? '') ?></h4>
-          <div class="muted">Address : <?= h(trim(implode(', ', array_filter([
-            $customer['address_line1'] ?? '', $customer['address_line2'] ?? '', $customer['city'] ?? '', $customer['state'] ?? '', $customer['pincode'] ?? ''
-          ])))) ?></div>
+          <?php
+            $addr1 = trim((string)($customer['address_line1'] ?? ''));
+            $addr2 = trim((string)($customer['address_line2'] ?? ''));
+            $city = trim((string)($customer['city'] ?? ''));
+            $state = trim((string)($customer['state'] ?? ''));
+            $pin = trim((string)($customer['pincode'] ?? ''));
+            $cityState = implode(', ', array_filter([$city, $state]));
+            if ($addr1 !== ''): ?>
+              <div class="muted">Address Line 1: <?= h($addr1) ?></div>
+            <?php endif; if ($addr2 !== ''): ?>
+              <div class="muted">Address Line 2: <?= h($addr2) ?></div>
+            <?php endif; if ($cityState !== ''): ?>
+              <div class="muted">City / State: <?= h($cityState) ?><?= $pin !== '' ? ' - ' . h($pin) : '' ?></div>
+            <?php elseif ($pin !== ''): ?>
+              <div class="muted">PIN: <?= h($pin) ?></div>
+            <?php endif; ?>
           <?php if (!empty($customer['phone'])): ?><div>Ph : <?= h($customer['phone']) ?></div><?php endif; ?>
           <?php if (!empty($customer['gst'])): ?><div>GST : <?= h($customer['gst']) ?></div><?php endif; ?>
         </div>
@@ -121,7 +137,6 @@ $estNo = $order['est_no'] ?? ('EST-' . $datePart . '-' . $ordPart);
               <th style="width:60px">S No</th>
               <th>Particular</th>
               <th class="num" style="width:80px">Qty</th>
-              <th class="num" style="width:80px">Unit</th>
               <th class="num" style="width:100px">Price</th>
               <th class="num" style="width:120px">Amount</th>
             </tr>
@@ -132,7 +147,6 @@ $estNo = $order['est_no'] ?? ('EST-' . $datePart . '-' . $ordPart);
                 <td><?= $s++ ?></td>
                 <td><?= h($it['name'] ?? ($it['id'] ?? 'Item')) ?></td>
                 <td class="num"><?= $q ?></td>
-                <td class="num"><?= $unit ?></td>
                 <td class="num"><?= number_format($p,2) ?></td>
                 <td class="num"><?= number_format($p*$q,2) ?></td>
               </tr>
@@ -160,9 +174,6 @@ $estNo = $order['est_no'] ?? ('EST-' . $datePart . '-' . $ordPart);
         <!-- RIGHT: totals box -->
         <div class="sum">
           <div class="row"><div>Sub Total</div><div><?= number_format($subtotal,2) ?></div></div>
-          <div class="row"><div>Discount<?= $discount_pct!==null ? ' ' . (int)$discount_pct . ' %' : '' ?></div><div><?= number_format($disc_amount,2) ?></div></div>
-          <div class="row"><div>SGST</div><div><?= number_format($sgst,2) ?></div></div>
-          <div class="row"><div>CGST</div><div><?= number_format($cgst,2) ?></div></div>
           <div class="row"><div>NET AMOUNT :</div><div><strong><?= number_format($net,2) ?></strong></div></div>
         </div>
       </div>
@@ -187,7 +198,8 @@ $estNo = $order['est_no'] ?? ('EST-' . $datePart . '-' . $ordPart);
         </div>
         <div>
           <?php if (!empty($order['order_id'])): ?>
-            <form method="post" action="api/order_pdf.php" target="_blank" style="display:inline">
+            <form method="post" action="/api/order_pdf.php" target="_blank" style="display:inline">
+              <input type="hidden" name="order_id" value="<?= (int)$order['order_id'] ?>">
               <input type="hidden" name="order_json" value='<?= h(json_encode($order)) ?>'>
               <button class="btn" type="submit">Download PDF</button>
             </form>
@@ -197,4 +209,23 @@ $estNo = $order['est_no'] ?? ('EST-' . $datePart . '-' . $ordPart);
       </footer>
     </div>
   </body>
+  <script>
+    // Prevent casual inspection (right-click, print shortcuts, dev tools) on the preview screen
+    document.addEventListener('contextmenu', (e)=> e.preventDefault());
+    document.addEventListener('keydown', (e)=>{
+      const key = (e.key || '').toLowerCase();
+      if (key === 'f12') {
+        e.preventDefault();
+        return;
+      }
+      const ctrlShift = e.ctrlKey && e.shiftKey;
+      if (ctrlShift && ['i','j','c','k'].includes(key)) {
+        e.preventDefault();
+        return;
+      }
+      if (e.ctrlKey && ['u','s','p'].includes(key)) {
+        e.preventDefault();
+      }
+    });
+  </script>
 </html>

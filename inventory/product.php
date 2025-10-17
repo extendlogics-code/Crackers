@@ -2,7 +2,10 @@
 require_once __DIR__ . '/../lib/auth.php';
 require_once __DIR__ . '/../lib/db.php';
 require_once __DIR__ . '/../lib/categories.php';
+require_once __DIR__ . '/../lib/routes.php';
 admin_require_login();
+
+$routeExt = route_extension();
 
 $cats = load_categories();
 $msg = '';
@@ -327,8 +330,8 @@ try {
     <header>
       <strong>Products</strong>
       <div>
-        <a class="ghost btn" href="/inventory/dashboard.php">Orders</a>
-        <a class="ghost btn" href="/inventory/login.php?logout=1">Logout</a>
+        <a class="ghost btn" href="/inventory/dashboard<?= $routeExt ?>">Orders</a>
+        <a class="ghost btn" href="/inventory/login<?= $routeExt ?>?logout=1">Logout</a>
       </div>
     </header>
     <div class="wrap">
@@ -338,7 +341,7 @@ try {
       <div class="grid">
         <div class="card">
           <h3 style="margin:0 0 8px">Create / Update Product</h3>
-          <form method="post" action="/inventory/product.php" enctype="multipart/form-data">
+          <form method="post" action="/inventory/product<?= $routeExt ?>" enctype="multipart/form-data">
             <input type="hidden" name="csrf" value="<?= htmlspecialchars(admin_csrf_token()) ?>">
             <input type="hidden" name="action" value="single">
             <div class="row">
@@ -391,7 +394,7 @@ try {
 
         <div class="card">
           <h3 style="margin:0 0 8px">Bulk Upload (CSV)</h3>
-          <form method="post" action="/inventory/product.php" enctype="multipart/form-data" style="margin-bottom:10px">
+          <form method="post" action="/inventory/product<?= $routeExt ?>" enctype="multipart/form-data" style="margin-bottom:10px">
             <input type="hidden" name="csrf" value="<?= htmlspecialchars(admin_csrf_token()) ?>">
             <input type="hidden" name="action" value="bulk">
             <div class="row">
@@ -450,7 +453,7 @@ try {
                         data-unit="<?= htmlspecialchars((string)($p['unit'] ?? '')) ?>"
                         data-image="<?= htmlspecialchars((string)($p['image_url'] ?? '')) ?>"
                       >Edit</button>
-                      <form method="post" action="/inventory/product.php" onsubmit="return confirm('Delete product & images?')">
+                      <form method="post" action="/inventory/product<?= $routeExt ?>" onsubmit="return confirm('Delete product & images?')">
                         <input type="hidden" name="csrf" value="<?= htmlspecialchars(admin_csrf_token()) ?>">
                         <input type="hidden" name="action" value="delete">
                         <input type="hidden" name="id" value="<?= htmlspecialchars((string)($p['sku'] ?? '')) ?>">
@@ -468,7 +471,7 @@ try {
             $page = max(1, min($page, $pages));
             $start = $totalProducts ? ($page - 1) * $per + 1 : 0;
             $end = min($totalProducts, $page * $per);
-            $base = '/inventory/product.php?per=' . (int)$per . '&page=';
+            $base = '/inventory/product' . $routeExt . '?per=' . (int)$per . '&page=';
           ?>
           <div style="display:flex;align-items:center;justify-content:space-between;margin-top:8px">
             <div style="color:var(--muted)">Showing <?= (int)$start ?>–<?= (int)$end ?> of <?= (int)$totalProducts ?></div>

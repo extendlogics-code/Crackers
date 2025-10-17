@@ -1,0 +1,178 @@
+{
+    "order_id": 31,
+    "customer_id": 21,
+    "customer": {
+        "name": "Rajasekar",
+        "email": "saraswathixerox.csc@gmail.com",
+        "phone": "8438352829",
+        "address_line1": "1\/57A, RAJA STREET,",
+        "address_line2": "VALAYAPATTI",
+        "city": "Namakkal",
+        "state": "Tamil Nadu",
+        "pincode": "637020"
+    },
+    "items": [
+        {
+            "sku": "30CS-002",
+            "name": "30CM COLOUR SPARKLERS",
+            "price": 41.99999999999999,
+            "qty": 4
+        },
+        {
+            "sku": "30CS-001",
+            "name": "30CM ELECTRIC SPARKLERS",
+            "price": 37.99999999999999,
+            "qty": 5
+        },
+        {
+            "sku": "30CS-003",
+            "name": "30CM GREEN SPARKLERS",
+            "price": 45.99999999999999,
+            "qty": 2
+        },
+        {
+            "sku": "30CS-004",
+            "name": "30CM RED SPARKLERS",
+            "price": 49.999999999999986,
+            "qty": 2
+        },
+        {
+            "sku": "BI-009",
+            "name": "MINI MONEY BANK",
+            "price": 39.99999999999999,
+            "qty": 2
+        },
+        {
+            "sku": "BI-001",
+            "name": "STONE",
+            "price": 9.999999999999998,
+            "qty": 1
+        },
+        {
+            "sku": "BC-001",
+            "name": "BIJILI",
+            "price": 35.99999999999999,
+            "qty": 3
+        },
+        {
+            "sku": "CGC-002",
+            "name": "28 GIANT",
+            "price": 22.999999999999996,
+            "qty": 10
+        },
+        {
+            "sku": "EB-003",
+            "name": "CLASSIC EXPLOSIVE BOMB (5 Ply)",
+            "price": 125.99999999999997,
+            "qty": 1
+        },
+        {
+            "sku": "FSI-016",
+            "name": "SING POP",
+            "price": 167.99999999999997,
+            "qty": 1
+        },
+        {
+            "sku": "FP-004",
+            "name": "FLOWER POTS ASHOKA (10 Pcs)",
+            "price": 119.99999999999997,
+            "qty": 6
+        },
+        {
+            "sku": "FP-005",
+            "name": "FLOWER POTS COLUR KOTTI (10 Pcs)",
+            "price": 199.99999999999994,
+            "qty": 1
+        },
+        {
+            "sku": "GW-001",
+            "name": "100 WALA",
+            "price": 39.99999999999999,
+            "qty": 10
+        },
+        {
+            "sku": "GB-001",
+            "name": "31 ITEMS",
+            "price": 500,
+            "qty": 2
+        },
+        {
+            "sku": "GC-001",
+            "name": "CHAKKARA BIG (10Pcs)",
+            "price": 39.99999999999999,
+            "qty": 2
+        },
+        {
+            "sku": "GC-002",
+            "name": "CHAKKARA SPL (10Pcs)",
+            "price": 79.99999999999999,
+            "qty": 4
+        },
+        {
+            "sku": "CG-007",
+            "name": "HOT WHEELS(5Pcs)",
+            "price": 21.999999999999996,
+            "qty": 2
+        },
+        {
+            "sku": "PB-001",
+            "name": "PAPER BOMB 1\/4 Kg",
+            "price": 49.999999999999986,
+            "qty": 6
+        },
+        {
+            "sku": "SC-003",
+            "name": "4 \" GOLD LAKSHMI",
+            "price": 29.999999999999993,
+            "qty": 2
+        },
+        {
+            "sku": "SC-002",
+            "name": "4 \" LAKSHMI",
+            "price": 14.999999999999996,
+            "qty": 6
+        },
+        {
+            "sku": "SC-004",
+            "name": "4 \" SUPER DLX",
+            "price": 30.999999999999993,
+            "qty": 2
+        },
+        {
+            "sku": "SC-005",
+            "name": "5 \" JALLIKATTU",
+            "price": 49.999999999999986,
+            "qty": 2
+        },
+        {
+            "sku": "SC-006",
+            "name": "6 \" KUMKI",
+            "price": 59.999999999999986,
+            "qty": 2
+        },
+        {
+            "sku": "SPFSS-003",
+            "name": "2 \" FANCY 3 STEP",
+            "price": 209.99999999999994,
+            "qty": 1
+        },
+        {
+            "sku": "SPFSS-002",
+            "name": "2 \" FANCY SINGLE",
+            "price": 109.99999999999997,
+            "qty": 1
+        },
+        {
+            "sku": "TW-002",
+            "name": "4 \" TWINKLING STAR",
+            "price": 57.999999999999986,
+            "qty": 4
+        }
+    ],
+    "subtotal": 5319.999999999999,
+    "shipping": 300,
+    "total": 5619.999999999999,
+    "notes": "Additional Contact No: 9677307350",
+    "pdf_path": "storage\/invoices\/order-31.pdf",
+    "created_at": "2025-10-10T14:38:06+00:00"
+}

@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/routes.php';
 function admin_session_start(): void {
     if (session_status() !== PHP_SESSION_ACTIVE) {
         $secure = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || (($_SERVER['SERVER_PORT'] ?? '') == 443);
@@ -32,7 +33,9 @@ function admin_logged_in(): bool {
 
 function admin_require_login(): void {
     if (!admin_logged_in()) {
-        header('Location: /inventory/login.php');
+        $requestPath = parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_PATH) ?: '';
+        $ext = (strpos($requestPath, '.php') !== false) ? '.php' : '';
+        header('Location: /inventory/login' . $ext);
         exit;
     }
 }
@@ -68,7 +71,8 @@ function admin_login(string $user, string $pass): bool {
     $ok = hash_equals((string)$cfg['admin']['user'], $user) && hash_equals((string)$cfg['admin']['pass'], $pass);
     if ($ok) {
         $_SESSION['admin_logged_in'] = true;
-        $_SESSION['admin_user'] = [ 'id' => 0, 'username' => $user, 'role' => 'admin' ];
+        // Config-based admin is treated as superadmin
+        $_SESSION['admin_user'] = [ 'id' => 0, 'username' => $user, 'role' => 'superadmin' ];
         session_regenerate_id(true);
     } else {
         unset($_SESSION['admin_logged_in'], $_SESSION['admin_user']);
@@ -114,7 +118,7 @@ function admin_current_role(): string {
 function admin_require_role($allowed): void {
     $role = admin_current_role();
     $allowedList = is_array($allowed) ? $allowed : [$allowed];
-    if (!in_array($role, $allowedList, true)) {
+    if ($role !== 'superadmin' && !in_array($role, $allowedList, true)) {
         http_response_code(403);
         echo 'Forbidden';
         exit;

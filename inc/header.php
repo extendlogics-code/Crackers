@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/../lib/routes.php';
 // Shared site header. Usage:
 //   $title = 'Page Title';
 //   $extraHead = '<style>...</style>'; // optional
@@ -114,7 +115,12 @@ foreach ($bgCandidates as $rel) {
   </head>
   <body>
     <?php
-      $cur = basename(parse_url($_SERVER['SCRIPT_NAME'] ?? '', PHP_URL_PATH));
+      $scriptPath = parse_url($_SERVER['SCRIPT_NAME'] ?? '', PHP_URL_PATH);
+      $cur = preg_replace('/\.php$/', '', basename($scriptPath));
+      $scriptDir = str_replace('\\', '/', dirname($scriptPath));
+      if ($scriptDir === '\\' || $scriptDir === '.') { $scriptDir = '/'; }
+      $basePath = ($scriptDir === '/' ? '/' : rtrim($scriptDir, '/') . '/');
+      $routeExt = route_extension();
       $logoRel = 'pkslogo.png';
       $logoAbs = __DIR__ . '/../' . $logoRel;
       if (!is_file($logoAbs)) { $logoRel = 'images/bg/contactbanner.jpg'; $logoAbs = __DIR__ . '/../' . $logoRel; }
@@ -134,18 +140,18 @@ foreach ($bgCandidates as $rel) {
 
     <div class="brand-hero" >
       <div class="wrap">
-        <div class="circle"><?php if(is_file($logoAbs)): ?><img src="/<?= htmlspecialchars($logoRel) ?>" alt="PKS Logo"><?php endif; ?></div>
+        <div class="circle"><?php if(is_file($logoAbs)): ?><img src="<?= htmlspecialchars($basePath . ltrim($logoRel, '/')) ?>" alt="PKS Logo"><?php endif; ?></div>
         <div>
           <div class="title">PSK CRACKERS</div>
           <div class="underline" aria-hidden="true"></div>
           <div class="tag">Best Quality Crackers @ Whole Sale Price</div>
         </div>
         <nav class="nav-pill">
-          <a class="<?= $cur==='home.php' || $cur==='index.php' ? 'active':'' ?>" href="/home.php">Home</a>
-          <a class="<?= $cur==='about.php' ? 'active':'' ?>" href="/about.php">About</a>
-          <a class="<?= $cur==='shop.php' ? 'active':'' ?>" href="/shop.php">Pricelist</a>
-          <a class="<?= $cur==='safety.php' ? 'active':'' ?>" href="/safety.php">Safety Tips</a>
-          <a class="<?= $cur==='contact.php' ? 'active':'' ?>" href="/contact.php">Contact</a>
+          <a class="<?= in_array($cur, ['home','index'], true) ? 'active':'' ?>" href="<?= htmlspecialchars($basePath . 'home' . $routeExt) ?>">Home</a>
+          <a class="<?= $cur==='about' ? 'active':'' ?>" href="<?= htmlspecialchars($basePath . 'about' . $routeExt) ?>">About</a>
+          <a class="<?= $cur==='shop' ? 'active':'' ?>" href="<?= htmlspecialchars($basePath . 'shop' . $routeExt) ?>">Pricelist</a>
+          <a class="<?= $cur==='safety' ? 'active':'' ?>" href="<?= htmlspecialchars($basePath . 'safety' . $routeExt) ?>">Safety Tips</a>
+          <a class="<?= $cur==='contact' ? 'active':'' ?>" href="<?= htmlspecialchars($basePath . 'contact' . $routeExt) ?>">Contact</a>
         </nav>
         <button id="menuBtn" class="hamburger" aria-label="Open menu" aria-controls="mobileMenu" aria-expanded="false">
           <span class="bar"></span>
@@ -163,11 +169,11 @@ foreach ($bgCandidates as $rel) {
           <button id="menuClose" class="hamburger" aria-label="Close menu"><span class="bar"></span><span class="bar"></span><span class="bar" style="transform:rotate(90deg)"></span></button>
         </div>
         <div class="links">
-          <a href="/home.php">Home</a>
-          <a href="/about.php">About</a>
-          <a href="/shop.php">Pricelist</a>
-          <a href="/safety.php">Safety Tips</a>
-          <a href="/contact.php">Contact</a>
+          <a href="<?= htmlspecialchars($basePath . 'home' . $routeExt) ?>">Home</a>
+          <a href="<?= htmlspecialchars($basePath . 'about' . $routeExt) ?>">About</a>
+          <a href="<?= htmlspecialchars($basePath . 'shop' . $routeExt) ?>">Pricelist</a>
+          <a href="<?= htmlspecialchars($basePath . 'safety' . $routeExt) ?>">Safety Tips</a>
+          <a href="<?= htmlspecialchars($basePath . 'contact' . $routeExt) ?>">Contact</a>
         </div>
       </div>
     </div>

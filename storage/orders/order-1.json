@@ -1,0 +1,100 @@
+{
+    "order_id": 27,
+    "customer_id": 17,
+    "customer": {
+        "name": "G. Rajaraman",
+        "email": "gkannandba@gmail.com",
+        "phone": "9443755017",
+        "address_line1": "no 3\/1, bharathiyar street, teachers colony",
+        "address_line2": "sandapettai, asanoor road, thirukoilur",
+        "city": "Kallakurichi",
+        "state": "Tamil Nadu",
+        "pincode": "605766"
+    },
+    "items": [
+        {
+            "sku": "10CS-003",
+            "name": "10CM GREEN SPARKLERS",
+            "price": 19.999999999999996,
+            "qty": 5
+        },
+        {
+            "sku": "15CS-006",
+            "name": "15CM 5 IN 1 SPARKLERS",
+            "price": 279.99999999999994,
+            "qty": 1
+        },
+        {
+            "sku": "15CS-001",
+            "name": "15CM ELECTRIC SPARKLERS",
+            "price": 37.99999999999999,
+            "qty": 3
+        },
+        {
+            "sku": "15CS-005",
+            "name": "15CM SILVER SPARKLERS",
+            "price": 65.99999999999999,
+            "qty": 2
+        },
+        {
+            "sku": "30CS-001",
+            "name": "30CM ELECTRIC SPARKLERS",
+            "price": 37.99999999999999,
+            "qty": 3
+        },
+        {
+            "sku": "BI-002",
+            "name": "MAGIC POP",
+            "price": 9.999999999999998,
+            "qty": 10
+        },
+        {
+            "sku": "BI-009",
+            "name": "MINI MONEY BANK",
+            "price": 39.99999999999999,
+            "qty": 2
+        },
+        {
+            "sku": "BI-005",
+            "name": "SNAKE TABLET",
+            "price": 43.99999999999999,
+            "qty": 3
+        },
+        {
+            "sku": "BI-001",
+            "name": "STONE",
+            "price": 9.999999999999998,
+            "qty": 10
+        },
+        {
+            "sku": "CM-001",
+            "name": "SUPER DLX(10 BOX)",
+            "price": 93.99999999999999,
+            "qty": 1
+        },
+        {
+            "sku": "GB-001",
+            "name": "31 ITEMS",
+            "price": 500,
+            "qty": 4
+        },
+        {
+            "sku": "TW-001",
+            "name": "1 1\/2 \" TWINKLING STAR",
+            "price": 21.999999999999996,
+            "qty": 3
+        },
+        {
+            "sku": "TW-002",
+            "name": "4 \" TWINKLING STAR",
+            "price": 57.999999999999986,
+            "qty": 3
+        }
+    ],
+    "subtotal": 3486,
+    "shipping": 150,
+    "total": 3636,
+    "notes": "Thirukoilure",
+    "pdf_path": "storage\/invoices\/order-27.pdf",
+    "created_at": "2025-09-29T18:00:53+00:00"
+}

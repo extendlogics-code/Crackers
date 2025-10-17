@@ -1,5 +1,7 @@
 <?php
 // Simple demo form to test saving orders
+require_once __DIR__ . '/lib/routes.php';
+$routeExt = route_extension();
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -44,12 +46,11 @@
           pincode: form.pincode.value,
         },
         subtotal: parseFloat(form.subtotal.value || '0'),
-        shipping: parseFloat(form.shipping.value || '0'),
-        total: parseFloat(form.total.value || '0'),
+        total: parseFloat(form.total.value || form.subtotal.value || '0'),
         notes: form.notes.value,
         items
       };
-      const res = await fetch('api/save_order.php', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)});
+      const res = await fetch('/api/save_order' + <?= json_encode($routeExt) ?>, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)});
       const json = await res.json();
       const out = document.getElementById('out');
       if (json.ok) {
@@ -77,7 +78,7 @@
 </head>
 <body>
   <h1>Order Demo</h1>
-  <p>Fill the form and it will POST to <code>api/save_order.php</code> and store in MySQL.</p>
+  <p>Fill the form and it will POST to <code><?= htmlspecialchars('/api/save_order' . $routeExt) ?></code> and store in MySQL.</p>
   <div id="out"></div>
 
   <form onsubmit="submitOrder(event)">
@@ -109,13 +110,11 @@
     <h2>Totals</h2>
     <div class="row">
       <label>Subtotal <input name="subtotal" type="number" step="0.01" value="0"></label>
-      <label>Shipping <input name="shipping" type="number" step="0.01" value="0"></label>
+      <label>Total <input name="total" type="number" step="0.01" value="0" required></label>
     </div>
-    <label>Total <input name="total" type="number" step="0.01" value="0" required></label>
     <label>Notes <textarea name="notes" rows="3"></textarea></label>
 
     <div class="actions"><button type="submit">Save Order</button></div>
   </form>
 </body>
 </html>
-

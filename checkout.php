@@ -9,6 +9,8 @@ $subtotal = (float)($payload['subtotal'] ?? 0);
 ?>
 <?php
 $title = 'PKS Crackers — Checkout';
+require_once __DIR__ . '/lib/routes.php';
+$routeExt = route_extension();
 $extraHead = <<<HEAD
 <style>
   :root { --bg:#f3f4f6; --text:#111827; --muted:#4b5563; --danger:#991b1b; --ok:#166534; }
@@ -57,7 +59,7 @@ $extraHead = <<<HEAD
 HEAD;
 include __DIR__ . '/inc/header.php';
 ?>
-    <div style="padding:8px 16px"><a href="shop.php" style="color:#93c5fd;text-decoration:none">← Back to Shop</a></div>
+    <div style="padding:8px 16px"><a href="/shop<?= $routeExt ?>" style="color:#93c5fd;text-decoration:none">← Back to Shop</a></div>
 
     <div class="wrap">
       <div class="grid">
@@ -90,10 +92,6 @@ include __DIR__ . '/inc/header.php';
           </table>
 
           <div style="display:grid;grid-template-columns:1fr;gap:10px;margin-top:10px">
-            <label>Shipping (fixed)
-              <input id="shipping" type="number" step="0.01" value="150" readonly>
-<span style="font-size:10px;"><strong>* Shipping charges include delivery for up to 1 kg. Additional courier fees apply for any weight beyond this limit.</strong></span>
-            </label>
             <div>
               <button type="button" id="continueShopping" class="btn ghost">Continue Shopping</button>
             </div>
@@ -101,7 +99,7 @@ include __DIR__ . '/inc/header.php';
 
           <div style="display:flex;justify-content:flex-end;gap:16px;margin-top:10px">
             <div><small style="color:var(--muted)">Subtotal</small><div id="subtotal">₹<?= number_format($subtotal,2) ?></div></div>
-            <div><small style="color:var(--muted)">Grand Total</small><div id="grand">₹<?= number_format($subtotal + 150,2) ?></div></div>
+            <div><small style="color:var(--muted)">Grand Total</small><div id="grand">₹<?= number_format($subtotal,2) ?></div></div>
           </div>
         </div>
 
@@ -162,7 +160,7 @@ include __DIR__ . '/inc/header.php';
               <small class="err-msg" id="err_notes"></small>
             </label>
             <div style="margin-top:10px" class="actions-inline">
-              <div id="min_note_checkout" style="color:#fbbf24;margin-right:auto">Minimum order: ₹3000</div>
+              <div id="min_note_checkout" style="color:#fbbf24;margin-right:auto">Minimum order: ₹2000</div>
               <button type="button" class="btn ghost" id="preview">Preview Invoice</button>
               <button type="button" class="btn" id="placeOrder">Place Order</button>
             </div>
@@ -198,10 +196,9 @@ include __DIR__ . '/inc/header.php';
     <script>
       const fmt = n => '₹' + (Number(n||0)).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
       let items = <?= json_encode($items) ?>.map(it => ({ ...it, unit_price: Number(it.unit_price), qty: Number(it.qty) }));
-      const shipping = document.getElementById('shipping');
       const subEl = document.getElementById('subtotal');
       const grandEl = document.getElementById('grand');
-      const MIN_TOTAL = 3000;
+      const MIN_TOTAL = 2000;
 
       // Totals
       function computeSubtotal(){ return items.reduce((s, it) => s + (Number(it.unit_price) * Number(it.qty||0)), 0); }
@@ -214,7 +211,7 @@ include __DIR__ . '/inc/header.php';
         });
         const sub = computeSubtotal();
         subEl.textContent = fmt(sub);
-        const net = sub + Number(shipping.value || 0);
+        const net = sub;
         grandEl.textContent = fmt(net);
         const note = document.getElementById('min_note_checkout');
         note.style.color = net < MIN_TOTAL ? '#ef4444' : '#10b981';
@@ -243,8 +240,7 @@ include __DIR__ . '/inc/header.php';
       });
 
       // Initial
-      function recalc(){ const s = 150; shipping.value = s.toFixed(2); refreshLines(); }
-      recalc();
+      refreshLines();
 
       // Continue shopping (keeps quantities)
       document.getElementById('continueShopping').addEventListener('click', ()=>{ history.back(); });
@@ -308,7 +304,7 @@ include __DIR__ . '/inc/header.php';
       // Build payload
       function buildPayload(extra={}){
         const sub = computeSubtotal();
-        const total = Math.max(0, sub + 150);
+        const total = Math.max(0, sub);
         return {
           customer: {
             name: f.name.value.trim(),
@@ -322,7 +318,6 @@ include __DIR__ . '/inc/header.php';
           },
           items: items.map(it=>({ sku: it.id, name: it.name||it.id, price: Number(it.unit_price), qty: Number(it.qty) })),
           subtotal: sub,
-          shipping: 150,
           discount: 0,
           total,
           notes: f.notes.value,
@@ -333,13 +328,13 @@ include __DIR__ . '/inc/header.php';
       // Preview / PDF helpers
       function openPdf(payload){
         const form = document.createElement('form');
-        form.method = 'POST'; form.action = 'api/order_pdf.php'; form.target = '_blank';
+        form.method = 'POST'; form.action = '/api/order_pdf' + <?= json_encode($routeExt) ?>; form.target = '_blank';
         const input = document.createElement('input'); input.type = 'hidden'; input.name = 'order_json'; input.value = JSON.stringify(payload);
         form.appendChild(input); document.body.appendChild(form); form.submit(); form.remove();
       }
       function openPreview(payload){
         const form = document.createElement('form');
-        form.method = 'POST'; form.action = 'invoice_preview.php'; form.target = '_blank';
+        form.method = 'POST'; form.action = '/invoice_preview' + <?= json_encode($routeExt) ?>; form.target = '_blank';
         const input = document.createElement('input'); input.type = 'hidden'; input.name = 'order_json'; input.value = JSON.stringify(payload);
         form.appendChild(input); document.body.appendChild(form); form.submit(); form.remove();
       }
@@ -363,7 +358,7 @@ include __DIR__ . '/inc/header.php';
 
       // Place Order -> validate -> open modal
       document.getElementById('placeOrder').addEventListener('click', ()=>{
-        const netNow = Math.max(0, computeSubtotal() + 150);
+        const netNow = Math.max(0, computeSubtotal());
         if (!validateForm()) return;
         if (netNow < MIN_TOTAL) {
           document.getElementById('min_note_checkout').scrollIntoView({behavior:'smooth', block:'center'});
@@ -383,7 +378,7 @@ include __DIR__ . '/inc/header.php';
           out.className = 'err';
           out.textContent = 'Please enter a valid Transaction ID (min 6 characters) to confirm payment.';
           // Log error to server
-          fetch('api/save_order.php', {
+          fetch('/api/save_order' + <?= json_encode($routeExt) ?>, {
             method: 'POST',
             headers: {'Content-Type':'application/json'},
             body: JSON.stringify({ error: 'Invalid transaction ID', txn_id: txnId, time: new Date().toISOString() })
@@ -402,7 +397,7 @@ include __DIR__ . '/inc/header.php';
             out.className='err';
             out.textContent = 'Please add at least 1 item and ensure total > 0 before placing the order.';
             // Log error to server
-            fetch('api/save_order.php', {
+            fetch('/api/save_order' + <?= json_encode($routeExt) ?>, {
               method: 'POST',
               headers: {'Content-Type':'application/json'},
               body: JSON.stringify({ error: 'No items or total <= 0', payload, time: new Date().toISOString() })
@@ -410,14 +405,14 @@ include __DIR__ . '/inc/header.php';
             return;
           }
 
-          const res = await fetch('api/save_order.php', {
+          const res = await fetch('/api/save_order' + <?= json_encode($routeExt) ?>, {
             method: 'POST',
             headers: {'Content-Type':'application/json'},
             body: JSON.stringify(payload)
           });
           if (!res.ok) {
             // Log error to server
-            fetch('api/save_order.php', {
+            fetch('/api/save_order' + <?= json_encode($routeExt) ?>, {
               method: 'POST',
               headers: {'Content-Type':'application/json'},
               body: JSON.stringify({ error: 'Network response was not ok', payload, time: new Date().toISOString() })
@@ -448,7 +443,7 @@ include __DIR__ . '/inc/header.php';
             out.className='err';
             out.textContent = 'Error: ' + (json.error||'Server') + (json.detail ? (' — ' + json.detail) : '');
             // Log error to server
-            fetch('api/save_order.php', {
+            fetch('/api/save_order' + <?= json_encode($routeExt) ?>, {
               method: 'POST',
               headers: {'Content-Type':'application/json'},
               body: JSON.stringify({ error: json.error||'Server', detail: json.detail||'', payload, time: new Date().toISOString() })
@@ -460,7 +455,7 @@ include __DIR__ . '/inc/header.php';
           out.className='err';
           out.textContent = 'Network error while placing the order. Please try again.';
           // Log error to server
-          fetch('api/save_order.php', {
+          fetch('/api/save_order' + <?= json_encode($routeExt) ?>, {
             method: 'POST',
             headers: {'Content-Type':'application/json'},
             body: JSON.stringify({ error: 'Network error', detail: e.message, time: new Date().toISOString() })
@@ -490,7 +485,7 @@ include __DIR__ . '/inc/header.php';
       const previewBtn = document.getElementById('preview');
       previewBtn.addEventListener('click', ()=>{
         if (!validateForm()) return;
-        const netNow = Math.max(0, computeSubtotal() + 150);
+        const netNow = Math.max(0, computeSubtotal());
         if (netNow < MIN_TOTAL) {
           document.getElementById('min_note_checkout').scrollIntoView({behavior:'smooth', block:'center'});
           return;
@@ -508,5 +503,23 @@ include __DIR__ . '/inc/header.php';
         openPreview(payload);
       });
       // ---------- /PREVIEW ----------
+
+      // Block basic inspect shortcuts so casual users cannot open dev tools from the popup
+      document.addEventListener('contextmenu', (e)=> e.preventDefault());
+      document.addEventListener('keydown', (e)=>{
+        const key = (e.key || '').toLowerCase();
+        if (key === 'f12') {
+          e.preventDefault();
+          return;
+        }
+        const isCtrlShift = e.ctrlKey && e.shiftKey;
+        if (isCtrlShift && ['i','j','c','k'].includes(key)) {
+          e.preventDefault();
+          return;
+        }
+        if (e.ctrlKey && ['u','s','p'].includes(key)) {
+          e.preventDefault();
+        }
+      });
     </script>
 <?php include __DIR__ . '/inc/footer.php'; ?>

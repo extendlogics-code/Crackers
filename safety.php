@@ -11,6 +11,8 @@ $extraHead = '<style>
   li{margin:6px 0}
   .note{padding:10px;border-radius:8px;background:#fff8f7;border:1px solid #ffd7d0;color:#7c2d12}
 </style>';
+require_once __DIR__ . '/lib/routes.php';
+$routeExt = route_extension();
 include __DIR__ . '/inc/header.php';
   // Optional safety banner image just below the menu if present
       $safetyRel = 'images/bg/safety.jpg';
@@ -337,7 +339,6 @@ Do not wear loose clothing while using fireworks.</p>
       <li>Dispose of spent items only after soaking them in water to ensure they are fully extinguished.</li>
     </ul>
 
-    <p><a href="shop.php" style="color:#2563eb">Back to Shop</a></p>
+    <p><a href="/shop<?= $routeExt ?>" style="color:#2563eb">Back to Shop</a></p>
   </div>
 <?php include __DIR__ . '/inc/footer.php'; ?>
-

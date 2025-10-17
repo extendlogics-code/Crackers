@@ -5,9 +5,9 @@
 // If images are missing, the sections gracefully hide.
 
 // Resolve optional assets
-$logoRel = 'pkslogo.png';
+$logoRel = 'images/pkslogo.png';
 $logoAbs = __DIR__ . '/../' . $logoRel;
-if (!is_file($logoAbs)) { $logoRel = 'images/bg/contactbanner.jpg'; $logoAbs = __DIR__ . '/../' . $logoRel; }
+if (!is_file($logoAbs)) { $logoRel = 'images/pkslogo.png'; $logoAbs = __DIR__ . '/../' . $logoRel; }
 $qr1Rel = 'images/pay/qr1.png';
 $qr2Rel = 'images/pay/qr2.png';
 $qr1Abs = __DIR__ . '/../' . $qr1Rel;

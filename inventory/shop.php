@@ -1,11 +1,13 @@
 <?php
 require_once __DIR__ . '/../lib/auth.php';
 require_once __DIR__ . '/../lib/db.php';
+require_once __DIR__ . '/../lib/routes.php';
 admin_require_login();
 
 $cats = require __DIR__ . '/../data/categories.php';
 $msg = '';
 $err = '';
+$routeExt = route_extension();
 
 // Ensure DB tables exist and have required columns (lightweight migration)
 try {
@@ -199,8 +201,8 @@ try {
     <header>
       <strong>Products</strong>
       <div>
-        <a class="ghost btn" href="/inventory/dashboard.php">Orders</a>
-        <a class="ghost btn" href="/inventory/login.php?logout=1">Logout</a>
+        <a class="ghost btn" href="/inventory/dashboard<?= $routeExt ?>">Orders</a>
+        <a class="ghost btn" href="/inventory/login<?= $routeExt ?>?logout=1">Logout</a>
       </div>
     </header>
     <div class="wrap">
