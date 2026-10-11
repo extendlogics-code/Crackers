@@ -7,6 +7,133 @@ function pdf_escape($s){
 }
 
 /**
+ * Normalize text for Helvetica (WinAnsi-ish): collapse whitespace, drop unsupported glyphs.
+ */
+function pdf_plain_text($s): string {
+    $s = (string)$s;
+    if ($s === '') return '';
+    if (function_exists('iconv')) {
+        $converted = @iconv('UTF-8', 'ISO-8859-1//TRANSLIT//IGNORE', $s);
+        if ($converted !== false) {
+            $s = $converted;
+        }
+    }
+    $s = preg_replace("/[\\r\\n\\t]+/", ' ', $s) ?? $s;
+    $s = preg_replace('/\s+/u', ' ', $s) ?? $s;
+    return trim($s);
+}
+
+/**
+ * Helvetica glyph widths in AFM units (1/1000 em). Unknown chars use 600.
+ */
+function pdf_helvetica_unit_width(string $ch): float {
+    static $w = null;
+    if ($w === null) {
+        $w = [
+            ' '=>278,'!'=>278,'"'=>355,'#'=>556,'$'=>556,'%'=>889,'&'=>667,"'"=>191,
+            '('=>333,')'=>333,'*'=>389,'+'=>584,','=>278,'-'=>333,'.'=>278,'/'=>278,
+            '0'=>556,'1'=>556,'2'=>556,'3'=>556,'4'=>556,'5'=>556,'6'=>556,'7'=>556,
+            '8'=>556,'9'=>556,':'=>278,';'=>278,'<'=>584,'='=>584,'>'=>584,'?'=>556,
+            '@'=>1015,'A'=>667,'B'=>667,'C'=>722,'D'=>722,'E'=>667,'F'=>611,'G'=>778,
+            'H'=>722,'I'=>278,'J'=>500,'K'=>667,'L'=>556,'M'=>833,'N'=>722,'O'=>778,
+            'P'=>667,'Q'=>778,'R'=>722,'S'=>667,'T'=>611,'U'=>722,'V'=>667,'W'=>944,
+            'X'=>667,'Y'=>667,'Z'=>611,'['=>278,'\\'=>278,']'=>278,'^'=>469,'_'=>556,
+            '`'=>333,'a'=>556,'b'=>556,'c'=>500,'d'=>556,'e'=>556,'f'=>278,'g'=>556,
+            'h'=>556,'i'=>222,'j'=>222,'k'=>500,'l'=>222,'m'=>833,'n'=>556,'o'=>556,
+            'p'=>556,'q'=>556,'r'=>333,'s'=>500,'t'=>278,'u'=>556,'v'=>500,'w'=>722,
+            'x'=>500,'y'=>500,'z'=>500,'{'=>334,'|'=>260,'}'=>334,'~'=>584,
+        ];
+    }
+    if (isset($w[$ch])) return (float)$w[$ch];
+    // Accented / high-byte latin1: approximate
+    $ord = ord($ch);
+    if ($ord >= 128) return 556.0;
+    return 600.0;
+}
+
+/** Measured string width in PDF points for Helvetica at $size. */
+function pdf_text_width(string $s, float $size): float {
+    if ($s === '') return 0.0;
+    $units = 0.0;
+    $len = strlen($s);
+    for ($i = 0; $i < $len; $i++) {
+        $units += pdf_helvetica_unit_width($s[$i]);
+    }
+    return $units * $size / 1000.0;
+}
+
+/**
+ * Word-wrap text to fit $maxWidth (points). Breaks long tokens letter-by-letter.
+ * @return list<string>
+ */
+function pdf_wrap_text(string $s, float $maxWidth, float $size): array {
+    $s = pdf_plain_text($s);
+    if ($s === '') return [];
+    if ($maxWidth <= 0) return [$s];
+
+    $words = preg_split('/\s+/', $s) ?: [];
+    $lines = [];
+    $current = '';
+
+    $flush = static function () use (&$lines, &$current) {
+        if ($current !== '') {
+            $lines[] = $current;
+            $current = '';
+        }
+    };
+
+    $breakToken = static function (string $token) use ($maxWidth, $size): array {
+        $parts = [];
+        $buf = '';
+        $len = strlen($token);
+        for ($i = 0; $i < $len; $i++) {
+            $try = $buf . $token[$i];
+            if ($buf !== '' && pdf_text_width($try, $size) > $maxWidth) {
+                $parts[] = $buf;
+                $buf = $token[$i];
+            } else {
+                $buf = $try;
+            }
+        }
+        if ($buf !== '') $parts[] = $buf;
+        return $parts ?: [$token];
+    };
+
+    foreach ($words as $word) {
+        if ($word === '') continue;
+        $chunks = (pdf_text_width($word, $size) > $maxWidth) ? $breakToken($word) : [$word];
+        foreach ($chunks as $chunk) {
+            $try = ($current === '') ? $chunk : ($current . ' ' . $chunk);
+            if ($current !== '' && pdf_text_width($try, $size) > $maxWidth) {
+                $flush();
+                $current = $chunk;
+            } else {
+                $current = $try;
+            }
+        }
+    }
+    $flush();
+    return $lines;
+}
+
+/** Truncate with ellipsis so the string fits $maxWidth. */
+function pdf_fit_text(string $s, float $maxWidth, float $size, string $ellipsis = '...'): string {
+    $s = pdf_plain_text($s);
+    if ($s === '' || pdf_text_width($s, $size) <= $maxWidth) return $s;
+    $ellW = pdf_text_width($ellipsis, $size);
+    if ($ellW >= $maxWidth) return '';
+    $budget = $maxWidth - $ellW;
+    $out = '';
+    $len = strlen($s);
+    for ($i = 0; $i < $len; $i++) {
+        $try = $out . $s[$i];
+        if (pdf_text_width($try, $size) > $budget) break;
+        $out = $try;
+    }
+    return rtrim($out) . $ellipsis;
+}
+
+/**
  * Read JPEG dimensions (very small parser for SOF0/SOF2)
  * @return array [width, height] or [0,0] on failure
  */
@@ -69,43 +196,39 @@ function build_order_pdf(array $order): string {
         $ops .= sprintf("%.2f %.2f m %.2f %.2f l S\n", $x1, $y1, $x2, $y2);
     };
     $addText = static function (&$text, $x, $ytop, $txt, $size=10){
-        $safe = pdf_escape($txt);
+        $safe = pdf_escape(pdf_plain_text($txt));
         $text .= sprintf("BT /F1 %d Tf %.2f %.2f Td (%s) Tj ET\n", $size, $x, $ytop, $safe);
     };
-    $trimmedName = static function($s){
-        $max = 44; $ellipsis = '…';
-        if (function_exists('mb_strimwidth')) {
-            return mb_strimwidth($s, 0, $max, $ellipsis, 'UTF-8');
-        }
-        $s = (string)$s;
-        return (strlen($s) > $max) ? substr($s, 0, max(0,$max-1)) . $ellipsis : $s;
-    };
-
     // Pull data
     $vendor = $order['vendor'] ?? [];
-    $vName = strtoupper($vendor['name'] ?? 'PSK CRACKERS');
-    $vAddr = trim(($vendor['address'] ?? ''));
-    $vPhone = $vendor['phone'] ?? '';
-    $vGst = $vendor['gst'] ?? '';
+    $vName = strtoupper(pdf_plain_text($vendor['name'] ?? 'PSK CRACKERS'));
+    $vAddr = pdf_plain_text($vendor['address'] ?? '');
+    $vPhone = pdf_plain_text($vendor['phone'] ?? '');
+    $vGst = pdf_plain_text($vendor['gst'] ?? '');
 
     $cust = $order['customer'] ?? [];
-    $cName = $cust['name'] ?? '';
-    $cCity = $cust['city'] ?? '';
-    $cState = $cust['state'] ?? '';
-    $cPin = $cust['pincode'] ?? '';
-    $cPhone = $cust['phone'] ?? '';
-    $cAddr1 = trim($cust['address_line1'] ?? '');
-    $cAddr2 = trim($cust['address_line2'] ?? '');
+    $cName = pdf_plain_text($cust['name'] ?? '');
+    $cCity = pdf_plain_text($cust['city'] ?? '');
+    $cState = pdf_plain_text($cust['state'] ?? '');
+    $cPin = pdf_plain_text($cust['pincode'] ?? '');
+    $cPhone = pdf_plain_text($cust['phone'] ?? '');
+    $cAddr1 = pdf_plain_text($cust['address_line1'] ?? '');
+    $cAddr2 = pdf_plain_text($cust['address_line2'] ?? '');
 
-    // Estimation No
+    // Estimation No — prefer yearly invoice code (INV-2026-000001)
     $datePart = date('Ymd-His');
     $ordPart = isset($order['order_id']) ? str_pad((string)$order['order_id'], 6, '0', STR_PAD_LEFT) : date('His');
-    $estNo = $order['est_no'] ?? ('EST-' . $datePart . '-' . $ordPart);
-    $stateSupply = $order['state_of_supply'] ?? '';
-    $eway = $order['eway_bill'] ?? '';
-    $vehicle = $order['vehicle_no'] ?? '';
+    $estNo = pdf_plain_text($order['est_no']
+        ?? $order['invoice_code']
+        ?? ('EST-' . $datePart . '-' . $ordPart));
+    $stateSupply = pdf_plain_text($order['state_of_supply'] ?? '');
+    $eway = pdf_plain_text($order['eway_bill'] ?? '');
+    $vehicle = pdf_plain_text($order['vehicle_no'] ?? '');
 
     $items = $order['items'] ?? [];
+    $items = array_values(array_filter($items, static function ($it) {
+        return (int)($it['qty'] ?? 0) > 0;
+    }));
     $subtotal = (float)($order['subtotal'] ?? 0);
     $discount = (float)($order['discount'] ?? 0);
     $discount_pct = isset($order['discount_pct']) ? (float)$order['discount_pct'] : null;
@@ -115,7 +238,14 @@ function build_order_pdf(array $order): string {
 
     // Reusable layout metrics
     $titleH = 26; $innerW = $W - 2*$M; $x0 = $M; $yTop = $H - $M;
-    $boxH = 110; $halfW = $innerW/2;
+    $halfW = $innerW/2;
+    $padX = 6;
+    $textMaxW = $halfW - 2*$padX; // left/right column content width
+    $lineH10 = 13;
+    $lineH9 = 12;
+    $boxPadTop = 16;
+    $boxPadBottom = 10;
+    $minBoxH = 110;
     $tableHeaderGap = 6;
     $rowH = 18;
     $colX = [
@@ -126,81 +256,114 @@ function build_order_pdf(array $order): string {
         $x0 + 36 + 200 + 60 + 60, // Price
         $x0 + $innerW             // Amount/right
     ];
+    $particularMaxW = ($colX[2] - $colX[1]) - 12;
 
-    $itemsPerPage = 18;
+    // Pre-wrap party-box lines so box heights grow instead of overflowing the divider
+    $pushLabeled = static function (array &$out, string $label, string $value, int $size) use ($textMaxW): void {
+        $value = pdf_plain_text($value);
+        if ($value === '' && $label === '') return;
+        if ($value === '') return;
+        foreach (pdf_wrap_text($label . $value, $textMaxW, (float)$size) as $ln) {
+            $out[] = ['t' => $ln, 's' => $size];
+        }
+    };
+
+    $billedByLines = [];
+    $pushLabeled($billedByLines, 'Billed By : ', $vName, 10);
+    if ($vAddr !== '') {
+        foreach (pdf_wrap_text($vAddr, $textMaxW, 9) as $ln) {
+            $billedByLines[] = ['t' => $ln, 's' => 9];
+        }
+    }
+    $pushLabeled($billedByLines, 'GST : ', $vGst, 9);
+    $pushLabeled($billedByLines, 'Ph : ', $vPhone, 9);
+
+    $estLines = [];
+    $pushLabeled($estLines, 'Estimation No: ', $estNo, 10);
+    $pushLabeled($estLines, 'Date: ', date('Y-m-d'), 10);
+    $pushLabeled($estLines, 'State Of Supply: ', $stateSupply, 9);
+    $pushLabeled($estLines, 'E-way Bill No: ', $eway, 9);
+    $pushLabeled($estLines, 'Vehicle No: ', $vehicle, 9);
+
+    $billToLines = [];
+    $pushLabeled($billToLines, 'Bill To : ', $cName !== '' ? $cName : '-', 10);
+    $pushLabeled($billToLines, 'Address Line 1 : ', $cAddr1, 9);
+    $pushLabeled($billToLines, 'Address Line 2 : ', $cAddr2, 9);
+    $cityStateParts = array_filter([$cCity, $cState], static function ($p) { return $p !== ''; });
+    if ($cityStateParts) {
+        $line = implode(', ', $cityStateParts);
+        if ($cPin !== '') { $line .= ' - ' . $cPin; }
+        $pushLabeled($billToLines, 'City / State : ', $line, 9);
+    } else {
+        $pushLabeled($billToLines, 'PIN : ', $cPin, 9);
+    }
+    $pushLabeled($billToLines, 'Ph : ', $cPhone, 9);
+
+    $linesHeight = static function (array $lines) use ($lineH9, $lineH10, $boxPadTop, $boxPadBottom, $minBoxH): float {
+        if (!$lines) return (float)$minBoxH;
+        $h = $boxPadTop + $boxPadBottom;
+        foreach ($lines as $ln) {
+            $h += (($ln['s'] ?? 9) >= 10) ? $lineH10 : $lineH9;
+        }
+        // small extra so last baseline clears bottom border
+        $h += 4;
+        return max((float)$minBoxH, $h);
+    };
+
+    $boxHUpper = max($linesHeight($billedByLines), $linesHeight($estLines));
+    $boxHLower = max($linesHeight($billToLines), (float)$minBoxH);
+
+    $headerBlockH = $titleH + $boxHUpper + $boxHLower + $tableHeaderGap + $rowH;
+    $footerReserveMid = 40;
+    $availMid = $H - 2*$M - $headerBlockH - $footerReserveMid;
+    $itemsPerPage = max(1, (int)floor($availMid / $rowH));
+    if ($itemsPerPage > 22) $itemsPerPage = 22;
+
     $chunks = array_chunk($items, $itemsPerPage);
     if (empty($chunks)) {
         $chunks = [[]];
     }
     $totalItemCount = count($items);
     $totalPages = count($chunks);
-    $pageNo = 0;
-    $serial = (int)($order['sno_start'] ?? 1);
+    $serial = max(1, (int)($order['sno_start'] ?? 1));
     $pages = [];
 
     $renderPage = function(array $pageItems, bool $isLast, int $currentSerial, int $pageIndex) use (
-        $W,$H,$M,$titleH,$innerW,$x0,$yTop,$boxH,$halfW,$tableHeaderGap,$rowH,$colX,
-        $drawRect,$drawLine,$addText,$trimmedName,
-        $vName,$vAddr,$vGst,$vPhone,
-        $cName,$cAddr1,$cAddr2,$cCity,$cState,$cPin,$cPhone,
-        $estNo,$stateSupply,$eway,$vehicle,
+        $H,$M,$titleH,$innerW,$x0,$yTop,$boxHUpper,$boxHLower,$halfW,$tableHeaderGap,$rowH,$colX,
+        $drawRect,$drawLine,$addText,$padX,$lineH9,$lineH10,$boxPadTop,$particularMaxW,
+        $billedByLines,$estLines,$billToLines,
         $subtotal,$netAmount,$order,$totalItemCount,$totalPages,$vendor
     ){
         $ops = ''; $text = '';
+
+        $drawLinesBlock = static function (&$text, $x, $yStart, array $lines) use ($addText, $lineH9, $lineH10) {
+            $y = $yStart;
+            foreach ($lines as $ln) {
+                $size = (int)($ln['s'] ?? 9);
+                $addText($text, $x, $y, (string)($ln['t'] ?? ''), $size);
+                $y -= ($size >= 10) ? $lineH10 : $lineH9;
+            }
+            return $y;
+        };
 
         // Title
         $drawRect($ops, $x0, $yTop, $innerW, $titleH);
         $addText($text, $x0 + $innerW/2 - 50, $yTop - 18, 'Invoice Order', 14);
         $addText($text, $x0 + $innerW - 60, $yTop - 12, '[Original]', 8);
 
-        // Party boxes
+        // Party boxes (heights match wrapped content; left text cannot cross halfW)
         $yTop2 = $yTop - $titleH;
-        $drawRect($ops, $x0, $yTop2, $halfW, $boxH); // Billed By
-        $drawRect($ops, $x0 + $halfW, $yTop2, $halfW, $boxH); // Estimation Details
-        $drawRect($ops, $x0, $yTop2 - $boxH, $halfW, $boxH); // Ship To
-        $drawRect($ops, $x0 + $halfW, $yTop2 - $boxH, $halfW, $boxH); // blank
+        $drawRect($ops, $x0, $yTop2, $halfW, $boxHUpper); // Billed By
+        $drawRect($ops, $x0 + $halfW, $yTop2, $halfW, $boxHUpper); // Estimation Details
+        $drawRect($ops, $x0, $yTop2 - $boxHUpper, $halfW, $boxHLower); // Bill To
+        $drawRect($ops, $x0 + $halfW, $yTop2 - $boxHUpper, $halfW, $boxHLower); // blank
 
-        // Fill left upper: Billed By
-        $addText($text, $x0 + 6, $yTop2 - 16, 'Billed By : ' . $vName, 10);
-        if ($vAddr !== '') $addText($text, $x0 + 6, $yTop2 - 30, $vAddr, 9);
-        if ($vGst !== '') $addText($text, $x0 + 6, $yTop2 - 44, 'GST : ' . $vGst, 9);
-        if ($vPhone !== '') $addText($text, $x0 + 6, $yTop2 - 58, 'Ph : ' . $vPhone, 9);
-
-        // Fill right upper: Estimation meta
-        $addText($text, $x0 + $halfW + 6, $yTop2 - 16, 'Estimation No: ' . $estNo, 10);
-        $addText($text, $x0 + $halfW + 6, $yTop2 - 30, 'Date: ' . date('Y-m-d'), 10);
-        if ($stateSupply !== '') $addText($text, $x0 + $halfW + 6, $yTop2 - 44, 'State Of Supply: ' . $stateSupply, 9);
-        if ($eway !== '') $addText($text, $x0 + $halfW + 6, $yTop2 - 58, 'E-way Bill No: ' . $eway, 9);
-        if ($vehicle !== '') $addText($text, $x0 + $halfW + 6, $yTop2 - 72, 'Vehicle No: ' . $vehicle, 9);
-
-        // Ship To (left lower)
-        $addText($text, $x0 + 6, $yTop2 - $boxH - 16, 'Ship To : ' . $cName, 10);
-        $cityStateParts = array_filter([$cCity, $cState]);
-        $yAddr = $yTop2 - $boxH - 30;
-        if ($cAddr1 !== '') {
-            $addText($text, $x0 + 6, $yAddr, 'Address Line 1 : ' . $cAddr1, 9);
-            $yAddr -= 12;
-        }
-        if ($cAddr2 !== '') {
-            $addText($text, $x0 + 6, $yAddr, 'Address Line 2 : ' . $cAddr2, 9);
-            $yAddr -= 12;
-        }
-        if ($cityStateParts) {
-            $line = implode(', ', $cityStateParts);
-            if ($cPin !== '') { $line .= ' - ' . $cPin; }
-            $addText($text, $x0 + 6, $yAddr, 'City / State : ' . $line, 9);
-            $yAddr -= 12;
-        } elseif ($cPin !== '') {
-            $addText($text, $x0 + 6, $yAddr, 'PIN : ' . $cPin, 9);
-            $yAddr -= 12;
-        }
-        if ($cPhone !== '') {
-            $addText($text, $x0 + 6, $yAddr, 'Ph : ' . $cPhone, 9);
-            $yAddr -= 12;
-        }
+        $drawLinesBlock($text, $x0 + $padX, $yTop2 - $boxPadTop, $billedByLines);
+        $drawLinesBlock($text, $x0 + $halfW + $padX, $yTop2 - $boxPadTop, $estLines);
+        $drawLinesBlock($text, $x0 + $padX, $yTop2 - $boxHUpper - $boxPadTop, $billToLines);
 
         // Items table header
-        $tableTop = $yTop2 - 2*$boxH - $tableHeaderGap;
+        $tableTop = $yTop2 - $boxHUpper - $boxHLower - $tableHeaderGap;
         $drawRect($ops, $x0, $tableTop, $innerW, $rowH);
         $addText($text, $colX[0] + 6, $tableTop - 12, 'S No', 9);
         $addText($text, $colX[1] + 6, $tableTop - 12, 'Particular', 9);
@@ -213,7 +376,8 @@ function build_order_pdf(array $order): string {
         $yCursor = $tableTop - $rowH;
         foreach ($pageItems as $it) {
             $qty = (int)($it['qty'] ?? 0);
-            $name = (string)($it['name'] ?? ($it['id'] ?? 'Item'));
+            $name = strtoupper(pdf_plain_text((string)($it['name'] ?? ($it['id'] ?? 'Item'))));
+            $name = pdf_fit_text($name, $particularMaxW, 9);
             $price = (float)($it['price'] ?? ($it['unit_price'] ?? 0));
             $amount = $price * $qty;
 
@@ -221,7 +385,7 @@ function build_order_pdf(array $order): string {
             for ($i=1;$i<count($colX)-1;$i++) { $drawLine($ops, $colX[$i], $yCursor - $rowH, $colX[$i], $yCursor); }
 
             $addText($text, $colX[0] + 6, $yCursor - 12, (string)$currentSerial, 9);
-            $addText($text, $colX[1] + 6, $yCursor - 12, strtoupper($trimmedName($name)), 9);
+            $addText($text, $colX[1] + 6, $yCursor - 12, $name, 9);
             $addText($text, $colX[2] + 6, $yCursor - 12, (string)$qty, 9);
             $addText($text, $colX[3] + 6, $yCursor - 12, number_format($price,2), 9);
             $addText($text, $colX[4] + 6, $yCursor - 12, number_format($amount,2), 9);
@@ -268,20 +432,35 @@ function build_order_pdf(array $order): string {
             $sectionH = $sumH;
             $wordsTop = $sectionTop - $sectionH - 12;
             $words = amount_in_words_indian($netAmount);
-            $drawRect($ops, $x0, $wordsTop, $innerW, 20);
-            $addText($text, $x0 + 6, $wordsTop - 14, 'Amount in words : ' . $words, 9);
+            $wordsPrefix = 'Amount in words : ';
+            $wordsLines = pdf_wrap_text($wordsPrefix . $words, $innerW - 12, 9);
+            if (!$wordsLines) $wordsLines = [$wordsPrefix . $words];
+            $wordsBoxH = max(20.0, 8 + count($wordsLines) * $lineH9);
+            $drawRect($ops, $x0, $wordsTop, $innerW, $wordsBoxH);
+            $wy = $wordsTop - 14;
+            foreach ($wordsLines as $wln) {
+                $addText($text, $x0 + 6, $wy, $wln, 9);
+                $wy -= $lineH9;
+            }
 
-            $netStripTop = $wordsTop - 20;
+            $netStripTop = $wordsTop - $wordsBoxH - 4;
             $drawRect($ops, $x0, $netStripTop, $innerW, 20);
-            $addText($text, $x0 + $innerW - 160, $netStripTop - 14, 'NET AMOUNT : ' . number_format($netAmount,2), 10);
+            $netLabel = 'NET AMOUNT : ' . number_format($netAmount,2);
+            $netX = $x0 + $innerW - 6 - pdf_text_width($netLabel, 10);
+            $addText($text, max($x0 + 6, $netX), $netStripTop - 14, $netLabel, 10);
 
             // Footer sign line
             $addText($text, $x0 + 6, $M + 26, 'Customer Sign', 9);
-            $addText($text, $x0 + $innerW - 120, $M + 26, 'For ' . ($vendor['name'] ?? 'PSK CRACKERS'), 9);
-            if (!empty($order['notes'])) {
-                $addText($text, $x0 + 6, $M + 12, (string)$order['notes'], 8);
-            } else {
-                $addText($text, $x0 + 6, $M + 12, 'We Declare that this Estimation shows the actual price of the goods described and that all particulars are true and correct', 8);
+            $forLabel = pdf_fit_text('For ' . pdf_plain_text($vendor['name'] ?? 'PSK CRACKERS'), 160, 9);
+            $addText($text, $x0 + $innerW - 120, $M + 26, $forLabel, 9);
+            $footerNote = !empty($order['notes'])
+                ? (string)$order['notes']
+                : 'We Declare that this Estimation shows the actual price of the goods described and that all particulars are true and correct';
+            $footerLines = pdf_wrap_text($footerNote, $innerW - 12, 8);
+            $fy = $M + 12;
+            foreach (array_slice($footerLines, 0, 2) as $fln) {
+                $addText($text, $x0 + 6, $fy, $fln, 8);
+                $fy -= 10;
             }
         } else {
             // Continuation notice on intermediate pages
