@@ -24,6 +24,8 @@ foreach ($bgCandidates as $rel) {
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="icon" type="image/png" href="/pkslogo.png">
+    <link rel="apple-touch-icon" href="/pkslogo.png">
     <title><?= htmlspecialchars($title) ?></title>
     <?php
       // Security headers
@@ -73,13 +75,13 @@ foreach ($bgCandidates as $rel) {
       .nav-pill a{color:#111;text-decoration:none;padding:6px 10px;border-radius:10px;font-weight:700}
       .nav-pill a.active{background:#000;color:#fff}
 
-      /* Mobile hamburger */
-      .hamburger{display:none;background:#111;color:#fff;border:0;border-radius:10px;padding:8px 10px;cursor:pointer}
+      /* Mobile hamburger — 44px touch target */
+      .hamburger{display:none;background:#111;color:#fff;border:0;border-radius:10px;padding:10px 12px;min-width:44px;min-height:44px;cursor:pointer}
       .hamburger .bar{display:block;width:20px;height:2px;background:#fff;margin:4px 0;border-radius:2px}
       .mobile-menu{display:none;position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.6)}
       .mobile-menu .panel{position:absolute;left:0;right:0;top:0;background:#ffffff;color:#111;border-bottom:1px solid rgba(0,0,0,.1);border-radius:0 0 12px 12px;max-width:1200px;margin:0 auto;padding:12px}
       .mobile-menu .links{display:flex;flex-direction:column;gap:8px}
-      .mobile-menu a{color:#111;text-decoration:none;padding:10px 12px;border-radius:8px;background:#f9fafb}
+      .mobile-menu a{color:#111;text-decoration:none;padding:10px 12px;border-radius:8px;background:#f9fafb;min-height:44px;display:flex;align-items:center}
       .mobile-menu.open{display:block}
 
       /* Optional safety image strip */
@@ -121,6 +123,7 @@ foreach ($bgCandidates as $rel) {
       if ($scriptDir === '\\' || $scriptDir === '.') { $scriptDir = '/'; }
       $basePath = ($scriptDir === '/' ? '/' : rtrim($scriptDir, '/') . '/');
       $routeExt = route_extension();
+      $routeBase = route_base();
       $logoRel = 'pkslogo.png';
       $logoAbs = __DIR__ . '/../' . $logoRel;
       if (!is_file($logoAbs)) { $logoRel = 'images/bg/contactbanner.jpg'; $logoAbs = __DIR__ . '/../' . $logoRel; }

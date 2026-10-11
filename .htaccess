@@ -1,14 +1,147 @@
-RewriteEngine On
+# Disable directory listing and MultiViews (avoids extension negotiation conflicts)
+Options -Indexes -MultiViews
 
-# Serve existing files/directories directly
-RewriteCond %{REQUEST_FILENAME} -f [OR]
-RewriteCond %{REQUEST_FILENAME} -d
-RewriteRule ^ - [L]
+# Force utf-8 charset
+AddDefaultCharset UTF-8
+AddCharset UTF-8 .html .css .js .svg .woff .woff2
 
-# Map extensionless requests to PHP files (e.g. /dashboard -> /dashboard.php)
-RewriteCond %{REQUEST_FILENAME} !-f
-RewriteCond %{REQUEST_FILENAME}.php -f
-RewriteRule ^(.+?)/?$ $1.php [L]
+# Security
+ServerSignature Off
 
-# Ensure directories fall back to index.php if present
-DirectoryIndex index.php
+# Protect .htaccess file
+<Files .htaccess>
+    Require all denied
+</Files>
+
+# Protect config.php
+<Files config.php>
+    Require all denied
+</Files>
+
+# Protect fusion_error_log.log
+<Files fusion_error_log.log>
+    Require all denied
+</Files>
+
+# Protect .cache files
+<Files *.cache>
+    Order allow,deny
+    deny from all
+</Files>
+
+# --- Compression (gzip; brotli when the host module is present) ---
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/html text/plain text/xml text/css text/javascript
+    AddOutputFilterByType DEFLATE application/javascript application/json application/xml
+    AddOutputFilterByType DEFLATE application/xhtml+xml application/rss+xml image/svg+xml
+    # Avoid double-compressing already-compressed assets
+    SetEnvIfNoCase Request_URI \.(?:gif|jpe?g|png|webp|zip|gz|tgz|rar|7z|mp[34]|mov|avi|pdf)$ no-gzip dont-vary
+</IfModule>
+<IfModule mod_brotli.c>
+    AddOutputFilterByType BROTLI_COMPRESS text/html text/plain text/xml text/css text/javascript
+    AddOutputFilterByType BROTLI_COMPRESS application/javascript application/json application/xml
+    AddOutputFilterByType BROTLI_COMPRESS application/xhtml+xml image/svg+xml
+</IfModule>
+
+# --- Browser caching for static assets (PHP stays uncached below) ---
+<IfModule mod_expires.c>
+    ExpiresActive On
+    ExpiresDefault "access plus 1 hour"
+    ExpiresByType text/css "access plus 7 days"
+    ExpiresByType text/javascript "access plus 7 days"
+    ExpiresByType application/javascript "access plus 7 days"
+    ExpiresByType image/jpeg "access plus 30 days"
+    ExpiresByType image/png "access plus 30 days"
+    ExpiresByType image/gif "access plus 30 days"
+    ExpiresByType image/webp "access plus 30 days"
+    ExpiresByType image/svg+xml "access plus 30 days"
+    ExpiresByType image/x-icon "access plus 30 days"
+    ExpiresByType font/woff "access plus 30 days"
+    ExpiresByType font/woff2 "access plus 30 days"
+    ExpiresByType application/font-woff "access plus 30 days"
+    ExpiresByType application/font-woff2 "access plus 30 days"
+    ExpiresByType text/html "access plus 0 seconds"
+</IfModule>
+
+<IfModule mod_headers.c>
+    Header set X-Content-Type-Options "nosniff"
+    # Long-cache immutable-ish static assets; HTML/PHP must not inherit this
+    <FilesMatch "\.(?i:css|js|mjs|jpg|jpeg|png|gif|webp|svg|ico|woff|woff2)$">
+        Header set Cache-Control "public, max-age=604800, stale-while-revalidate=86400"
+    </FilesMatch>
+    <FilesMatch "\.(?i:php)$">
+        Header set Cache-Control "no-store, no-cache, must-revalidate"
+        Header set Pragma "no-cache"
+    </FilesMatch>
+    # Keep Vary correct when compression is negotiated
+    <IfModule mod_deflate.c>
+        Header append Vary Accept-Encoding
+    </IfModule>
+</IfModule>
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Pass Authorization header through to PHP (CGI/FastCGI)
+    RewriteCond %{HTTP:Authorization} .
+    RewriteRule ^ - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+
+    # --- External redirects (GET/HEAD only): hide .php in the address bar ---
+    # Do not 301 POST (would turn POST into GET). Use THE_REQUEST to avoid loops
+    # after internal rewrites. Query strings are preserved by default.
+
+    # /index.php (and /stage/index.php) → directory root
+    RewriteCond %{REQUEST_METHOD} ^(GET|HEAD)$ [NC]
+    RewriteCond %{THE_REQUEST} \s/+(.*/)?index\.php[\s?] [NC]
+    RewriteRule (^|/)index\.php$ /%1 [R=301,L]
+
+    # /contact.php → /contact, /inventory/login.php → /inventory/login, etc.
+    RewriteCond %{REQUEST_METHOD} ^(GET|HEAD)$ [NC]
+    RewriteCond %{THE_REQUEST} \s/+(\S+?)\.php[\s?] [NC]
+    RewriteRule ^.+\.php$ /%1 [R=301,L]
+
+    # --- Internal rewrite: extensionless → existing .php file ---
+    # Skip real files/dirs and anything that already has a file extension
+    # (css/js/images/favicon.ico etc. are never mapped to PHP).
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_URI} !\.[a-z0-9]{1,8}$ [NC]
+    RewriteCond %{REQUEST_FILENAME}.php -f
+    RewriteRule ^(.+?)/?$ $1.php [L,QSA]
+</IfModule>
+
+# Browser caching + compression for static assets (PHP routes stay dynamic)
+<IfModule mod_expires.c>
+    ExpiresActive On
+    ExpiresDefault "access plus 1 hour"
+    ExpiresByType text/css "access plus 7 days"
+    ExpiresByType application/javascript "access plus 7 days"
+    ExpiresByType text/javascript "access plus 7 days"
+    ExpiresByType image/jpeg "access plus 30 days"
+    ExpiresByType image/png "access plus 30 days"
+    ExpiresByType image/gif "access plus 30 days"
+    ExpiresByType image/webp "access plus 30 days"
+    ExpiresByType image/svg+xml "access plus 30 days"
+    ExpiresByType image/x-icon "access plus 30 days"
+    ExpiresByType font/woff "access plus 30 days"
+    ExpiresByType font/woff2 "access plus 30 days"
+    ExpiresByType application/font-woff "access plus 30 days"
+    ExpiresByType application/font-woff2 "access plus 30 days"
+</IfModule>
+
+<IfModule mod_headers.c>
+    <FilesMatch "\.(css|js|mjs)$">
+        Header set Cache-Control "public, max-age=604800"
+    </FilesMatch>
+    <FilesMatch "\.(jpg|jpeg|png|gif|webp|svg|ico|woff|woff2)$">
+        Header set Cache-Control "public, max-age=2592000, immutable"
+    </FilesMatch>
+</IfModule>
+
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/html text/plain text/xml text/css text/javascript application/javascript application/json application/xml image/svg+xml
+</IfModule>
+
+ErrorDocument 401 /error.php?code=401
+ErrorDocument 403 /error.php?code=403
+ErrorDocument 404 /error.php?code=404

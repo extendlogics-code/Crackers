@@ -3,7 +3,7 @@ require_once __DIR__ . '/lib/db.php';
 require_once __DIR__ . '/lib/categories.php';
 require_once __DIR__ . '/lib/routes.php';
 $routeExt = route_extension();
-
+$routeBase = route_base();
 function load_products_json(): array {
   $path = __DIR__ . '/data/products.json';
   if (is_file($path)) {
@@ -16,7 +16,12 @@ function load_products_json(): array {
 function load_products_db(): array {
   try {
     $pdo = get_pdo();
-    $st = $pdo->query("SELECT id, sku, name, category, unit, price, discount_pct, image_url FROM products ORDER BY name");
+    require_once __DIR__ . '/lib/products.php';
+    ensure_products_catalog_schema($pdo);
+    $st = $pdo->query("SELECT id, sku, name, category, unit, price, discount_pct, image_url
+                       FROM products
+                       WHERE COALESCE(is_active, 1) = 1
+                       ORDER BY name");
     $rows = $st->fetchAll();
     $out = [];
     foreach ($rows as $r) {
@@ -26,7 +31,7 @@ function load_products_db(): array {
         'category' => (string)$r['category'],
         'unit' => (string)($r['unit'] ?? ''),
         'price' => (float)$r['price'],
-        'discount_pct' => (int)($r['discount_pct'] ?? 0),
+        'discount_pct' => (float)($r['discount_pct'] ?? 0),
         'image' => (string)($r['image_url'] ?? ''),
       ];
     }
@@ -40,8 +45,10 @@ $products = load_products_db();
 $fromDb = !empty($products);
 if (!$fromDb) { $products = load_products_json(); }
 
-// Helper: find local images for a product under images/products/{id}/ or by slugified name
+// Helper: find local images for a product under images/products/{id}/ or by slugified name.
+// Directory listings are cached per request to avoid N× scandir on large catalogs.
 function product_images(string $id, ?string $name = null): array {
+  static $dirCache = [];
   $out = [];
   $candidates = [];
   $base = __DIR__ . '/images/products';
@@ -53,16 +60,22 @@ function product_images(string $id, ?string $name = null): array {
   }
   $seen = [];
   foreach ($candidates as $dir) {
-    if (!is_dir($dir)) continue;
-    foreach (scandir($dir) as $f) {
-      if ($f === '.' || $f === '..') continue;
-      $ext = strtolower(pathinfo($f, PATHINFO_EXTENSION));
-      if (!in_array($ext, ['jpg','jpeg','png','webp','gif'])) continue;
+    if (!isset($dirCache[$dir])) {
+      $dirCache[$dir] = [];
+      if (is_dir($dir)) {
+        foreach (scandir($dir) as $f) {
+          if ($f === '.' || $f === '..') continue;
+          $ext = strtolower(pathinfo($f, PATHINFO_EXTENSION));
+          if (!in_array($ext, ['jpg','jpeg','png','webp','gif'], true)) continue;
+          $dirCache[$dir][] = $f;
+        }
+      }
+    }
+    foreach ($dirCache[$dir] as $f) {
       $key = strtolower($f);
       if (isset($seen[$key])) continue;
       $seen[$key] = true;
-      $rel = 'images/products/' . basename($dir) . '/' . $f;
-      $out[] = $rel;
+      $out[] = 'images/products/' . basename($dir) . '/' . $f;
     }
   }
   return $out;
@@ -149,11 +162,18 @@ $extraHead = <<<HEAD
   th{background:rgba(0,0,0,.04)}
   .cat-row td{background:#f1c40f; color:#111; font-weight:800; letter-spacing:.4px; text-transform:uppercase; text-align:center}
   .thumb{width:72px; height:72px; object-fit:cover; border-radius:6px; border:1px solid rgba(0,0,0,.08)}
-  .qty-input{border:2px solid #ef4444}
-  .qty-input.valid{border-color:#facc15 !important}
+  .qty-input{border:2px solid #d1d5db}
+  .qty-input.valid{border-color:#16a34a !important}
   td.price,td.total{text-align:right; white-space:nowrap}
+  th.col-no, td.col-no{width:56px; text-align:center; font-weight:700; color:#374151}
   .sticky{position:sticky;bottom:0;left:0;right:0;z-index:10;background:rgba(255,255,255,.96);backdrop-filter:saturate(140%) blur(6px);border-top:1px solid rgba(0,0,0,.08)}
   .bar1{max-width:1200px;margin:0 auto;padding:10px 16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+  .bar1 .btn{min-height:44px;padding:12px 16px}
+  @media (max-width:640px){
+    .bar1{gap:8px;padding:10px 12px}
+    .bar1 .btn{flex:1 1 auto;text-align:center}
+    .qty-input,.qmm{min-height:44px;font-size:16px} /* avoid iOS zoom */
+  }
 
   @media (max-width:900px){ .grid{grid-template-columns:repeat(2,1fr)} }
 
@@ -403,6 +423,7 @@ include __DIR__ . '/inc/header.php';
   <table>
     <thead>
       <tr>
+        <th class="col-no">No.</th>
         <th style="width:90px">Image</th>
         <th>Product</th>
         <th class="col-unit" style="width:100px">Unit</th>
@@ -414,34 +435,67 @@ include __DIR__ . '/inc/header.php';
     </thead>
     <tbody>
     <?php 
-      usort($products, function($a,$b){ return strcasecmp($a['category'] ?? '', $b['category'] ?? ''); });
+      // Prefer master PDF/catalog order from data/categories.php; unknown cats last (A–Z).
+      $masterCats = [];
+      $masterFile = __DIR__ . '/data/categories.php';
+      if (is_file($masterFile)) {
+        $loadedMaster = require $masterFile;
+        if (is_array($loadedMaster)) {
+          foreach ($loadedMaster as $mc) {
+            $key = strtoupper(trim((string)$mc));
+            if ($key !== '' && !isset($masterCats[$key])) $masterCats[$key] = count($masterCats);
+          }
+        }
+      }
+      // Legacy alias: older catalog used BABY ITEMS for CHILDREN'S ITEMS
+      if (isset($masterCats["CHILDREN'S ITEMS"]) && !isset($masterCats['BABY ITEMS'])) {
+        $masterCats['BABY ITEMS'] = $masterCats["CHILDREN'S ITEMS"];
+      }
+      $catRank = function(string $cat) use ($masterCats): int {
+        $c = strtoupper(trim($cat));
+        return $masterCats[$c] ?? (1000 + (abs(crc32($c)) % 1000));
+      };
+      usort($products, function($a,$b) use ($catRank) {
+        $ca = (string)($a['category'] ?? '');
+        $cb = (string)($b['category'] ?? '');
+        $ra = $catRank($ca); $rb = $catRank($cb);
+        if ($ra !== $rb) return $ra <=> $rb;
+        return strcasecmp((string)($a['name'] ?? ''), (string)($b['name'] ?? ''));
+      });
       $lastCat = null;
+      $sno = 1;
       foreach ($products as $p): 
         $price=(float)($p['price']??0); 
-        $disc=(int)($p['discount_pct']??0); 
+        $disc=(float)($p['discount_pct']??0); 
         $final=$price*(1-$disc/100); 
-        $imgs = product_images($p['id'], $p['name']); 
+        $imgUrl = trim((string)($p['image'] ?? ''));
+        $hasDbImage = $imgUrl !== '' && stripos($imgUrl, 'placeholder') === false;
+        // Skip filesystem gallery scan when DB already has a working image (shop lists are large).
+        $imgs = $hasDbImage ? [] : product_images($p['id'], $p['name']);
         $cat = strtoupper(trim($p['category'] ?? ''));
+        // Display alias for legacy DB rows still labeled BABY ITEMS
+        $catDisplay = ($cat === 'BABY ITEMS') ? "CHILDREN'S ITEMS" : $cat;
         $unit = htmlspecialchars($p['unit'] ?? 'Box');
-        if ($lastCat !== $cat) { $lastCat = $cat; ?>
+        if ($lastCat !== $catDisplay) { $lastCat = $catDisplay; ?>
           <tr class="cat-row" data-category="<?= htmlspecialchars($lastCat) ?>">
-            <td colspan="7"><?= htmlspecialchars($lastCat ?: 'OTHERS') ?></td>
+            <td colspan="8"><?= htmlspecialchars($lastCat ?: 'OTHERS') ?></td>
           </tr>
         <?php }
         $gallery = [];
-        if (!empty($p['image'])) { $gallery[] = (string)$p['image']; }
+        if ($hasDbImage) { $gallery[] = $imgUrl; }
         foreach ($imgs as $im) { if (!in_array($im, $gallery, true)) $gallery[] = $im; }
-        $primary = !empty($p['image'])
-                    ? (string)$p['image']
+        $primary = $hasDbImage
+                    ? $imgUrl
                     : (!empty($imgs) ? $imgs[0] : 'https://via.placeholder.com/400x300?text=PKS+Crackers');
     ?>
       <tr 
         data-id="<?= htmlspecialchars($p['id']) ?>" 
         data-name="<?= htmlspecialchars($p['name']) ?>" 
-        data-category="<?= htmlspecialchars($cat) ?>" 
+        data-category="<?= htmlspecialchars($catDisplay) ?>" 
         data-price="<?= number_format($final,2,'.','') ?>" 
         data-images='<?= htmlspecialchars(json_encode($gallery, JSON_UNESCAPED_SLASHES)) ?>'>
         
+        <td data-label="No." class="col-no"><?= $sno++ ?></td>
         <td data-label="Image">
           <?php if (!empty($primary)): ?>
             <img class="thumb open-gallery"
@@ -460,7 +514,7 @@ include __DIR__ . '/inc/header.php';
         <td data-label="Price">₹<?= number_format($final,2) ?></td>
         <td data-label="Qty">
           <div style="display:flex;align-items:center;gap:8px">
-            <input type="number" class="qty-input qmm" min="0" step="1" inputmode="numeric" pattern="[0-9]*" value="0" style="width:100px;padding:8px;border-radius:8px;background:#fff;color:#111;border:2px solid #ef4444">
+            <input type="number" class="qty-input qmm" min="0" step="1" inputmode="numeric" pattern="[0-9]*" value="0" style="width:100px;padding:8px;border-radius:8px;background:#fff;color:#111">
             <?php if (!empty($gallery)): ?>
               <button type="button" class="btn ghost open-gallery mdnn" style="padding:6px 8px">View</button>
             <?php endif; ?>
@@ -474,7 +528,7 @@ include __DIR__ . '/inc/header.php';
 </div>
 </div>
 
-<form class="sticky" id="checkoutForm" method="post" action="/checkout.php">
+<form class="sticky" id="checkoutForm" method="post" action="<?= $routeBase ?>/checkout<?= $routeExt ?>">
   <input type="hidden" name="order_json" id="order_json" value="{}">
   <div class="bar1">
     <div><small style="color:var(--muted)">Items</small> <strong id="sum_items">0</strong></div>

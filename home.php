@@ -3,7 +3,7 @@ $title = 'PKS Crackers — Home';
 require_once __DIR__ . '/lib/db.php';
 require_once __DIR__ . '/lib/routes.php';
 $routeExt = route_extension();
-
+$routeBase = route_base();
 function product_img(string $sku, string $name = '', string $fallback = ''): string {
   $base = __DIR__ . '/images/products/' . preg_replace('/[^A-Za-z0-9_-]/','-',$sku);
   if (is_dir($base)) {
@@ -22,7 +22,13 @@ function product_img(string $sku, string $name = '', string $fallback = ''): str
 $featured = [];
 try {
   $pdo = get_pdo();
-  $st = $pdo->query("SELECT sku, name, category, price, discount_pct, image_url FROM products ORDER BY discount_pct DESC, price ASC LIMIT 12");
+  require_once __DIR__ . '/lib/products.php';
+  ensure_products_catalog_schema($pdo);
+  $st = $pdo->query("SELECT sku, name, category, price, discount_pct, image_url
+                     FROM products
+                     WHERE COALESCE(is_active, 1) = 1
+                     ORDER BY discount_pct DESC, price ASC
+                     LIMIT 12");
   $featured = $st->fetchAll();
 } catch (Throwable $__) {}
 if (!$featured) {
@@ -204,8 +210,8 @@ include __DIR__ . '/inc/header.php';
         <h1>Celebrate Brighter. Celebrate Safer.</h1>
         <p>Premium crackers curated for every festival night — rockets, sparklers, flower pots and more at honest prices.</p>
         <div class="cta-row">
-          <a class="btn" href="/shop<?= $routeExt ?>">Shop Now</a>
-          <a class="btn ghost" href="/about<?= $routeExt ?>">Why PKS</a>
+          <a class="btn" href="<?= $routeBase ?>/shop<?=$routeExt ?>">Shop Now</a>
+          <a class="btn ghost" href="<?= $routeBase ?>/about<?=$routeExt ?>">Why PKS</a>
         </div>
       </div> -->
    <!-- </section>-->
@@ -278,14 +284,14 @@ include __DIR__ . '/inc/header.php';
         <p style="color:var(--muted);max-width:900px;text-align:center">Our motto is to make every festival celebration bright and safe.This, we bring out with our wide range of firecrackers. With over 200 varieties of crackers developed and marketed every year, we are among the most sought brands in the Sivakasi region and around the country. Our products are known for their safety and we take great efforts to ensure that all our orders are delivered in a standard time frame with an economical pricing.</p>
        <!-- <div class="cat-grid">
           <?php foreach ($catList as $c): ?>
-            <a class="cat" href="/shop<?= $routeExt ?>?cat=<?= urlencode($c) ?>">
+            <a class="cat" href="<?= $routeBase ?>/shop<?=$routeExt ?>?cat=<?= urlencode($c) ?>">
               <div class="icon">🎇</div>
               <div><?= htmlspecialchars($c) ?></div>
             </a>
           <?php endforeach; ?>
         </div>
         <div style="text-align:center;margin-top:10px">
-          <a class="btn ghost" href="/shop<?= $routeExt ?>" style="text-decoration:none">View More Products</a>
+          <a class="btn ghost" href="<?= $routeBase ?>/shop<?=$routeExt ?>" style="text-decoration:none">View More Products</a>
         </div>-->
       </section>
       
@@ -392,7 +398,7 @@ include __DIR__ . '/inc/header.php';
     </div>
   </div>
 
-  <a href="/shop<?= $routeExt ?>" class="view-more-btn">View More</a>
+  <a href="<?= $routeBase ?>/shop<?=$routeExt ?>" class="view-more-btn">View More</a>
 </div>
 
       </section>
@@ -488,7 +494,7 @@ include __DIR__ . '/inc/header.php';
   <div class="inner">
     <h3>Bundle & Save</h3>
     <p>Check out combo packs curated for family celebrations. More sparkle, better value.</p>
-    <div><a class="btn" href="/shop<?= $routeExt ?>">Browse Combos</a></div>
+    <div><a class="btn" href="<?= $routeBase ?>/shop<?=$routeExt ?>">Browse Combos</a></div>
   </div>
 </section>
 
@@ -585,7 +591,7 @@ include __DIR__ . '/inc/header.php';
           <h3>Our Promise</h3>
           <p style="color:var(--muted)">We hand-pick quality crackers from trusted brands, pack them safely, and deliver with care. Whether it’s a small family gathering or a grand celebration, we’ve got the sparkle you need.</p>
           <br>
-          <a class="btn" href="/contact<?= $routeExt ?>">Talk to Us</a>
+          <a class="btn" href="<?= $routeBase ?>/contact<?=$routeExt ?>">Talk to Us</a>
         </div>
       </section>
  
@@ -623,35 +629,34 @@ include __DIR__ . '/inc/header.php';
      <br>
   <div class="swiper myBrandSwiper">
     <div class="swiper-wrapper">
-      <div class="swiper-slide"><img src="images/brands/b1.jpeg" alt="Brand 1"></div>
-      <div class="swiper-slide"><img src="images/brands/b2.webp" alt="Brand 2"></div>
-      <div class="swiper-slide"><img src="images/brands/b3.webp" alt="Brand 3"></div>
-      <div class="swiper-slide"><img src="images/brands/b4.png" alt="Brand 4"></div>
-      <div class="swiper-slide"><img src="images/brands/b5.jpg" alt="Brand 5"></div>
-      <div class="swiper-slide"><img src="images/brands/b6.jpg" alt="Brand 6"></div>
-      <div class="swiper-slide"><img src="images/brands/b7.webp" alt="Brand 6"></div>
+      <div class="swiper-slide"><img src="images/brands/b1.jpeg" alt="Brand 1" loading="lazy" decoding="async" width="160" height="80"></div>
+      <div class="swiper-slide"><img src="images/brands/b2.webp" alt="Brand 2" loading="lazy" decoding="async" width="160" height="80"></div>
+      <div class="swiper-slide"><img src="images/brands/b3.webp" alt="Brand 3" loading="lazy" decoding="async" width="160" height="80"></div>
+      <div class="swiper-slide"><img src="images/brands/b4.png" alt="Brand 4" loading="lazy" decoding="async" width="160" height="80"></div>
+      <div class="swiper-slide"><img src="images/brands/b5.jpg" alt="Brand 5" loading="lazy" decoding="async" width="160" height="80"></div>
+      <div class="swiper-slide"><img src="images/brands/b6.jpg" alt="Brand 6" loading="lazy" decoding="async" width="160" height="80"></div>
+      <div class="swiper-slide"><img src="images/brands/b7.webp" alt="Brand 6" loading="lazy" decoding="async" width="160" height="80"></div>
     </div>
   </div>
 </div>
 
-<!-- Swiper JS -->
-<script src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"></script>
-
-<script>
-var swiper = new Swiper(".myBrandSwiper", {
-  slidesPerView: 5,
-  spaceBetween: 30,
-  loop: true,
-  autoplay: {
-    delay: 2000,
-    disableOnInteraction: false,
-  },
-  breakpoints: {
-    320: { slidesPerView: 2, spaceBetween: 10 },
-    640: { slidesPerView: 3, spaceBetween: 20 },
-    991: { slidesPerView: 4, spaceBetween: 20 },
-    1200: { slidesPerView: 5, spaceBetween: 30 }
-  }
+<!-- Swiper JS (deferred; init after load) -->
+<script src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js" defer></script>
+<script defer>
+document.addEventListener('DOMContentLoaded', function () {
+  if (typeof Swiper === 'undefined') return;
+  new Swiper('.myBrandSwiper', {
+    slidesPerView: 5,
+    spaceBetween: 30,
+    loop: true,
+    autoplay: { delay: 2000, disableOnInteraction: false },
+    breakpoints: {
+      320: { slidesPerView: 2, spaceBetween: 10 },
+      640: { slidesPerView: 3, spaceBetween: 20 },
+      991: { slidesPerView: 4, spaceBetween: 20 },
+      1200: { slidesPerView: 5, spaceBetween: 30 }
+    }
+  });
 });
 </script>
 
@@ -663,28 +668,32 @@ var swiper = new Swiper(".myBrandSwiper", {
 
     <!-- Floating CTA (customize to WhatsApp when number is available) -->
     <div class="floating-cta">
-      <a href="/contact<?= $routeExt ?>" aria-label="Chat with us">
+      <a href="<?= $routeBase ?>/contact<?=$routeExt ?>" aria-label="Chat with us">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12c0 1.733.44 3.363 1.214 4.79L2 22l5.31-1.2C8.7 21.56 10.306 22 12 22Z" stroke="white" stroke-opacity=".85" stroke-width="1.5"/><path d="M8.5 10.5c0 3.038 2.462 5.5 5.5 5.5" stroke="white" stroke-width="1.5" stroke-linecap="round"/></svg>
         <span>Chat with us</span>
       </a>
     </div>
 
     <script>
-      // Fireworks canvas (subtle)
+      // Fireworks canvas — pause off-screen / reduced-motion / save battery
       (function(){
-        const c = document.getElementById('fw'); if(!c) return; const ctx=c.getContext('2d');
-        function resize(){ c.width=innerWidth; c.height=document.querySelector('.hero').offsetHeight; } resize(); addEventListener('resize', resize);
+        const c = document.getElementById('fw'); if(!c) return;
+        if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) { c.style.display='none'; return; }
+        const ctx=c.getContext('2d');
+        const hero = document.querySelector('.hero');
+        function resize(){ if(!hero) return; c.width=innerWidth; c.height=hero.offsetHeight; } resize(); addEventListener('resize', resize);
         const sparks=[]; const bursts=[];
+        let running=true, raf=0;
         function launch(){
           const x = 60 + Math.random()*(c.width-120); const y = c.height - 10; const color = Math.random()*360;
           bursts.push({x,y,age:0,life:1000+Math.random()*600,h:color});
         }
-        function step(ts){
+        function step(){
+          if (!running) { raf=0; return; }
           ctx.clearRect(0,0,c.width,c.height);
-          if (bursts.length < 6 && Math.random() < 0.05) launch();
+          if (bursts.length < 4 && Math.random() < 0.03) launch();
           for(let i=bursts.length-1;i>=0;i--){ const b=bursts[i]; b.age+=16; if(b.age>200){
-            // explode into sparks once
-            for(let k=0;k<60;k++){ const a=Math.random()*Math.PI*2; const v=0.4+Math.random()*1.2; sparks.push({x:b.x,y:b.y-80*Math.random(),vx:Math.cos(a)*v,vy:Math.sin(a)*v-0.3,age:0,life:800+Math.random()*600,h:b.h}); }
+            for(let k=0;k<36;k++){ const a=Math.random()*Math.PI*2; const v=0.4+Math.random()*1.2; sparks.push({x:b.x,y:b.y-80*Math.random(),vx:Math.cos(a)*v,vy:Math.sin(a)*v-0.3,age:0,life:800+Math.random()*600,h:b.h}); }
             bursts.splice(i,1);
           } else {
             ctx.fillStyle=`hsla(${b.h},100%,70%,.8)`; ctx.beginPath(); ctx.arc(b.x, b.y - b.age*0.2, 2, 0, Math.PI*2); ctx.fill();
@@ -693,8 +702,20 @@ var swiper = new Swiper(".myBrandSwiper", {
             p.x+=p.vx*8; p.y+=p.vy*8; p.vy+=0.005; const a=1-(p.age/p.life); ctx.fillStyle=`hsla(${p.h},100%,70%,${a})`;
             ctx.fillRect(p.x,p.y,1.2,1.2);
           }
-          requestAnimationFrame(step);
-        } requestAnimationFrame(step);
+          raf = requestAnimationFrame(step);
+        }
+        function setActive(on){
+          running = !!on;
+          if (running && !raf) raf = requestAnimationFrame(step);
+          if (!running) { ctx.clearRect(0,0,c.width,c.height); sparks.length=0; bursts.length=0; }
+        }
+        if ('IntersectionObserver' in window && hero) {
+          const io = new IntersectionObserver((ents)=>{ setActive(ents.some(e=>e.isIntersecting)); }, {threshold:0.05});
+          io.observe(hero);
+        } else {
+          setActive(true);
+        }
+        document.addEventListener('visibilitychange', ()=> setActive(!document.hidden && running));
       })();
     </script>
 <?php include __DIR__ . '/inc/footer.php'; ?>
