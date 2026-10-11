@@ -32,7 +32,7 @@ $qr2Abs = __DIR__ . '/../' . $qr2Rel;
         <!-- Logo + Tagline -->
         <div class="footer-left">
           <?php if (is_file($logoAbs)): ?>
-            <div class="footer-logo"><img src="/<?= htmlspecialchars($logoRel) ?>" alt="PKS Logo"></div>
+            <div class="footer-logo"><img src="/<?= htmlspecialchars($logoRel) ?>" alt="PKS Logo" width="160" height="160" loading="lazy" decoding="async"></div>
           <?php endif; ?>
           <div style="margin-top:10px;color:#ffffff"><strong>Best Quality Crackers</strong><br>@ Whole Sale Price</div>
         </div>
@@ -53,7 +53,7 @@ $qr2Abs = __DIR__ . '/../' . $qr2Rel;
         <?php if (is_file($qr1Abs)): ?>
         <div>
           <div style="color:#9ca3af;margin-bottom:8px">Scan to Pay</div>
-          <div class="footer-card"><img src="/<?= htmlspecialchars($qr1Rel) ?>" alt="UPI QR"></div>
+          <div class="footer-card"><img src="/<?= htmlspecialchars($qr1Rel) ?>" alt="UPI QR" width="200" height="240" loading="lazy" decoding="async"></div>
         </div>
         <?php endif; ?>
 
@@ -61,7 +61,7 @@ $qr2Abs = __DIR__ . '/../' . $qr2Rel;
         <?php if (is_file($qr2Abs)): ?>
         <div>
           <div style="color:#9ca3af;margin-bottom:8px">Scan to Pay</div>
-          <div class="footer-card"><img src="/<?= htmlspecialchars($qr2Rel) ?>" alt="UPI QR"></div>
+          <div class="footer-card"><img src="/<?= htmlspecialchars($qr2Rel) ?>" alt="UPI QR" width="200" height="240" loading="lazy" decoding="async"></div>
         </div>
         <?php endif; ?>
       </div>

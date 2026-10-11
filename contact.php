@@ -13,6 +13,7 @@ $extraHead = '<style>
 </style>';
 require_once __DIR__ . '/lib/routes.php';
 $routeExt = route_extension();
+$routeBase = route_base();
 include __DIR__ . '/inc/header.php';
 ?>
 
@@ -72,8 +73,8 @@ include __DIR__ . '/inc/header.php';
 </section>-->
     
     <section class="hero1">
-  <img class="hero-img" src="images/bg/contactbanner.jpg" alt="Hero Image">
-  <canvas id="fw"></canvas>
+  <img class="hero-img" src="images/bg/contactbanner.jpg" alt="Contact PSK Crackers"
+       width="1600" height="600" decoding="async" fetchpriority="high">
 </section>
 
 <section>
@@ -108,7 +109,7 @@ document.getElementById('contactForm').addEventListener('submit', function(e){
     const form = e.target;
     const data = new FormData(form);
 
-    fetch('/send_mail' + <?= json_encode($routeExt) ?>, {
+    fetch(<?= json_encode($routeBase . '/send_mail' . $routeExt) ?>, {
         method: 'POST',
         body: data
     })

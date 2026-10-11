@@ -14,6 +14,12 @@ function load_products_json(): array {
 }
 
 function load_products_db(): array {
+  $cacheFile = __DIR__ . '/storage/cache/shop_products.cache.php';
+  $cacheTtl = 120; // 2 minutes
+  if (is_file($cacheFile) && (filemtime($cacheFile) > (time() - $cacheTtl))) {
+    $cached = @include $cacheFile;
+    if (is_array($cached) && $cached !== []) return $cached;
+  }
   try {
     $pdo = get_pdo();
     require_once __DIR__ . '/lib/products.php';
@@ -35,6 +41,10 @@ function load_products_db(): array {
         'image' => (string)($r['image_url'] ?? ''),
       ];
     }
+    if ($out !== []) {
+      if (!is_dir(dirname($cacheFile))) @mkdir(dirname($cacheFile), 0777, true);
+      @file_put_contents($cacheFile, '<?php return ' . var_export($out, true) . ';', LOCK_EX);
+    }
     return $out;
   } catch (Throwable $__) {
     return [];
@@ -44,6 +54,14 @@ function load_products_db(): array {
 $products = load_products_db();
 $fromDb = !empty($products);
 if (!$fromDb) { $products = load_products_json(); }
+
+// Inline SVG placeholder — no third-party CDN dependency on slow/offline networks
+$PLACEHOLDER_IMG = 'data:image/svg+xml;charset=utf-8,' . rawurlencode(
+  '<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300" viewBox="0 0 400 300">'
+  . '<rect fill="#f3f4f6" width="400" height="300"/>'
+  . '<text x="200" y="155" text-anchor="middle" fill="#9ca3af" font-family="system-ui,sans-serif" font-size="18">PSK Crackers</text>'
+  . '</svg>'
+);
 
 // Helper: find local images for a product under images/products/{id}/ or by slugified name.
 // Directory listings are cached per request to avoid N× scandir on large catalogs.
@@ -166,9 +184,12 @@ $extraHead = <<<HEAD
   .qty-input.valid{border-color:#16a34a !important}
   td.price,td.total{text-align:right; white-space:nowrap}
   th.col-no, td.col-no{width:56px; text-align:center; font-weight:700; color:#374151}
-  .sticky{position:sticky;bottom:0;left:0;right:0;z-index:10;background:rgba(255,255,255,.96);backdrop-filter:saturate(140%) blur(6px);border-top:1px solid rgba(0,0,0,.08)}
+  .sticky{position:sticky;bottom:0;left:0;right:0;z-index:10;background:rgba(255,255,255,.96);backdrop-filter:saturate(140%) blur(6px);border-top:1px solid rgba(0,0,0,.08);padding-bottom:env(safe-area-inset-bottom,0)}
   .bar1{max-width:1200px;margin:0 auto;padding:10px 16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
   .bar1 .btn{min-height:44px;padding:12px 16px}
+  #list tbody tr[data-id]{content-visibility:auto;contain-intrinsic-size:auto 88px}
+  body.shop-page{overflow-x:clip}
+  .shop-main{padding-bottom:96px}
   @media (max-width:640px){
     .bar1{gap:8px;padding:10px 12px}
     .bar1 .btn{flex:1 1 auto;text-align:center}
@@ -176,6 +197,10 @@ $extraHead = <<<HEAD
   }
 
   @media (max-width:900px){ .grid{grid-template-columns:repeat(2,1fr)} }
+  @media (max-width:1024px) and (min-width:769px){
+    .thumb{width:64px;height:64px}
+    .toolbar input[type="text"]{min-width:220px}
+  }
 
   /* Keep Unit & MRP visible on phones */
   @media (max-width:640px){
@@ -192,6 +217,10 @@ $extraHead = <<<HEAD
   @media (max-width:480px){
     .qty-input{width:72px}
     .table-responsive table{min-width:560px}
+  }
+  @media (orientation: landscape) and (max-height:500px){
+    .hero1 .hero-img{max-height:42vh;object-fit:cover;width:100%}
+    .shop-main{padding-bottom:72px}
   }
 
   /* Gallery modal */
@@ -395,16 +424,20 @@ include __DIR__ . '/inc/header.php';
  <canvas id="fw"></canvas></section>-->
  
  <section class="hero1">
-  <img class="hero-img" src="images/pslide.jpg" alt="Hero Image">
-  <canvas id="fw"></canvas>
+  <img class="hero-img" src="images/pslide.jpg" alt="Diwali sale — up to 80% off"
+       width="1600" height="600" decoding="async" fetchpriority="high">
 </section>
 
-<section>
+<section class="shop-main">
     
 <!--<div class="mobile-sticky-offer">
 <img src="images/s1.png" alt="80% OFF Flash Sale" /></div>-->
 
 <div class="wrap">
+<script>
+  document.body.classList.add('shop-page');
+  window.__PSK_PH = <?= json_encode($PLACEHOLDER_IMG, JSON_UNESCAPED_SLASHES) ?>;
+</script>
   <div class="toolbar">
     <?php $totalProducts = count($products); ?>
     <input id="search" type="text" class="pretty-border" placeholder="Search products..." autocomplete="off" aria-label="Search products">
@@ -486,7 +519,7 @@ include __DIR__ . '/inc/header.php';
         foreach ($imgs as $im) { if (!in_array($im, $gallery, true)) $gallery[] = $im; }
         $primary = $hasDbImage
                     ? $imgUrl
-                    : (!empty($imgs) ? $imgs[0] : 'https://via.placeholder.com/400x300?text=PKS+Crackers');
+                    : (!empty($imgs) ? $imgs[0] : $PLACEHOLDER_IMG);
     ?>
       <tr 
         data-id="<?= htmlspecialchars($p['id']) ?>" 
@@ -502,9 +535,10 @@ include __DIR__ . '/inc/header.php';
                  src="<?= htmlspecialchars($primary) ?>"
                  alt="<?= htmlspecialchars($p['name']) ?>"
                  loading="lazy" decoding="async" fetchpriority="low"
-                 width="72" height="72">
+                 width="72" height="72"
+                 onerror="this.onerror=null;if(window.__PSK_PH)this.src=window.__PSK_PH;">
           <?php else: ?>
-            <div class="thumb" style="background:#eee"></div>
+            <div class="thumb" style="background:#eee" aria-hidden="true"></div>
           <?php endif; ?>
         </td>
 

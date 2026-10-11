@@ -16,3 +16,16 @@
 Options -ExecCGI
 RemoveHandler .php .phtml .phar .pl .py .cgi .sh
 RemoveType .php .phtml .phar .pl .py .cgi .sh
+
+# Long-lived cache for product / brand / banner images
+<IfModule mod_expires.c>
+    ExpiresActive On
+    ExpiresByType image/jpeg "access plus 30 days"
+    ExpiresByType image/png "access plus 30 days"
+    ExpiresByType image/gif "access plus 30 days"
+    ExpiresByType image/webp "access plus 30 days"
+    ExpiresByType image/svg+xml "access plus 30 days"
+</IfModule>
+<IfModule mod_headers.c>
+    Header set Cache-Control "public, max-age=2592000, stale-while-revalidate=86400"
+</IfModule>

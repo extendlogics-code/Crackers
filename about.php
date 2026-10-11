@@ -12,6 +12,7 @@ $extraHead = '<style>
 </style>';
 require_once __DIR__ . '/lib/routes.php';
 $routeExt = route_extension();
+$routeBase = route_base();
 include __DIR__ . '/inc/header.php';
 ?>
 <style>
@@ -225,8 +226,8 @@ include __DIR__ . '/inc/header.php';
    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css" />
    
    <section class="hero1">
-  <img class="hero-img" src="images/bg/diwalisale.jpg" alt="Hero Image">
-  <canvas id="fw"></canvas>
+  <img class="hero-img" src="images/bg/diwalisale.jpg" alt="About PSK Crackers"
+       width="1600" height="600" decoding="async" fetchpriority="high">
 </section>
 
    
@@ -241,7 +242,7 @@ include __DIR__ . '/inc/header.php';
      <h1>About PKS Crackers</h1>
      <p>PKS Crackers brings festive joy with a curated selection of high‑quality crackers at great prices. Our focus is on safety, authenticity, and hassle‑free delivery.</p>
      <p>We partner with trusted manufacturers and continuously update our catalog to offer fresh combos and seasonal specials.</p>
-  <p><a href="/home<?= $routeExt ?>">Return Home</a></p>
+  <p><a href="<?= $routeBase ?>/home<?=$routeExt ?>">Return Home</a></p>
    </div>-->
    
    
@@ -259,7 +260,7 @@ include __DIR__ . '/inc/header.php';
 Our shop crackers to all types of events, from festivals like Diwali and New Year to weddings, birthdays, and special occasions. We proudly maintain the highest safety standards, ensuring that our products are not only vibrant but also reliable and safe for use.<br><br>
 
 Whether you're looking for a small pack to light up a cozy family gathering or bulk orders for large events or businesses, we provide competitive pricing and premium quality products that never fail to impress.</p>
-    <p><a href="/home<?= $routeExt ?>">Return Home</a></p>
+    <p><a href="<?= $routeBase ?>/home<?=$routeExt ?>">Return Home</a></p>
   </div>
 
 </div>

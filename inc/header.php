@@ -43,9 +43,16 @@ foreach ($bgCandidates as $rel) {
     <style>
       :root { --bg:#ffffff; --text:#111827; --muted:#4b5563; --brand:#e11d48; --brand2:#f97316; --gold:#f59e0b; --glow:#ff7a18; }
       *{box-sizing:border-box}
-      body{ margin:0; background: var(--bg); color:var(--text); font:16px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,sans-serif }
+      html{scroll-behavior:smooth}
+      @media (prefers-reduced-motion: reduce){ html{scroll-behavior:auto} }
+      body{ margin:0; background: var(--bg); color:var(--text); font:16px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,sans-serif; overflow-x:clip }
       /* Make all images fluid by default for mobile/tablet responsiveness */
       img{max-width:100%; height:auto}
+      /* Prefer readable tap targets site-wide */
+      a,button{touch-action:manipulation}
+      @media (max-width:1024px){
+        .nav-pill a{padding:10px 12px;min-height:44px;display:inline-flex;align-items:center}
+      }
 
       /* Top golden bar */
       .topbar{position:sticky;top:0;z-index:50;background:linear-gradient(0deg,#fbbf24,var(--gold));color:#111;border-bottom:1px solid rgba(0,0,0,.12)}
@@ -143,7 +150,7 @@ foreach ($bgCandidates as $rel) {
 
     <div class="brand-hero" >
       <div class="wrap">
-        <div class="circle"><?php if(is_file($logoAbs)): ?><img src="<?= htmlspecialchars($basePath . ltrim($logoRel, '/')) ?>" alt="PKS Logo"><?php endif; ?></div>
+        <div class="circle"><?php if(is_file($logoAbs)): ?><img src="<?= htmlspecialchars($basePath . ltrim($logoRel, '/')) ?>" alt="PKS Logo" width="120" height="120" decoding="async" fetchpriority="high"><?php endif; ?></div>
         <div>
           <div class="title">PSK CRACKERS</div>
           <div class="underline" aria-hidden="true"></div>
