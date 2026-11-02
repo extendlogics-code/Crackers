@@ -4,8 +4,10 @@
 require_once __DIR__ . '/../lib/auth.php';
 require_once __DIR__ . '/../lib/db.php';
 require_once __DIR__ . '/../lib/pdf.php';
+require_once __DIR__ . '/../lib/order_invoice.php';
 
-admin_require_login();
+admin_session_start();
+$isAdmin = admin_logged_in();
 
 header('Cache-Control: no-store');
 header('X-Content-Type-Options: nosniff');
@@ -33,6 +35,7 @@ function get_payload_from_request(): array {
 function load_payload_from_db(PDO $pdo, int $orderId): ?array {
   $st = $pdo->prepare(
     "SELECT o.id, o.subtotal, o.total, o.status, o.created_at, o.transaction_id,
+            o.order_year, o.invoice_seq, o.invoice_code,
             c.name AS customer_name, c.email AS customer_email, c.phone AS customer_phone,
             c.address_line1 AS customer_address_line1, c.address_line2 AS customer_address_line2,
             c.city AS customer_city, c.state AS customer_state, c.pincode AS customer_pincode
@@ -53,9 +56,14 @@ function load_payload_from_db(PDO $pdo, int $orderId): ?array {
 
   $addrLine1 = trim((string)($order['customer_address_line1'] ?? ''));
   $addrLine2 = trim((string)($order['customer_address_line2'] ?? ''));
+  $invoiceCode = (string)($order['invoice_code'] ?? '');
 
   return [
     'order_id' => $orderId,
+    'order_year' => isset($order['order_year']) ? (int)$order['order_year'] : null,
+    'invoice_seq' => isset($order['invoice_seq']) ? (int)$order['invoice_seq'] : null,
+    'invoice_code' => $invoiceCode,
+    'est_no' => $invoiceCode !== '' ? $invoiceCode : null,
     'subtotal' => (float)$order['subtotal'],
     'total' => (float)$order['total'],
     'transaction_id' => (string)($order['transaction_id'] ?? ''),
@@ -93,6 +101,7 @@ function load_payload_from_db(PDO $pdo, int $orderId): ?array {
 }
 
 $orderId = isset($_POST['order_id']) ? (int)$_POST['order_id'] : (int)($_GET['order_id'] ?? 0);
+$downloadToken = trim((string)($_GET['token'] ?? $_POST['download_token'] ?? ''));
 $order = [];
 
 if ($orderId > 0) {
@@ -104,7 +113,22 @@ if ($orderId > 0) {
     echo 'Order not found.';
     exit;
   }
+  if (!$isAdmin) {
+    $invoiceCode = (string)($order['invoice_code'] ?? '');
+    if (!order_invoice_verify_token($orderId, $downloadToken, $invoiceCode)) {
+      http_response_code(403);
+      header('Content-Type: text/plain; charset=utf-8');
+      echo 'Invalid or missing download link. Please use Download Invoice from your order confirmation.';
+      exit;
+    }
+  }
 } else {
+  if (!$isAdmin) {
+    http_response_code(403);
+    header('Content-Type: text/plain; charset=utf-8');
+    echo 'Please sign in as admin or complete checkout to download your invoice.';
+    exit;
+  }
   $order = get_payload_from_request();
 }
 
