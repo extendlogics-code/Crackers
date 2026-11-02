@@ -33,9 +33,7 @@ function admin_logged_in(): bool {
 
 function admin_require_login(): void {
     if (!admin_logged_in()) {
-        $requestPath = parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_PATH) ?: '';
-        $ext = (strpos($requestPath, '.php') !== false) ? '.php' : '';
-        header('Location: /inventory/login' . $ext);
+        header('Location: ' . route_path('/inventory/login'));
         exit;
     }
 }
@@ -113,6 +111,12 @@ function admin_current_user(): array {
 function admin_current_role(): string {
     $u = admin_current_user();
     return $u['role'] ?? 'guest';
+}
+
+/** True for roles that can manage products/orders (admin + superadmin). */
+function admin_is_manager(): bool {
+    $role = admin_current_role();
+    return in_array($role, ['admin', 'superadmin'], true);
 }
 
 function admin_require_role($allowed): void {
